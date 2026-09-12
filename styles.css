@@ -89,3 +89,21 @@ button{font:inherit}
 .mascot-scene .cook,.mascot-scene .bowl,.mascot-scene .croquette{display:none}
 .mascot-scene .crab{font-size:0;left:50%;top:50%;width:120px;height:120px;transform:translate(-50%,-50%)}
 .mascot-scene .crab:after{content:"";position:absolute;inset:0;background:url('assets/stage1/crab.png') center/contain no-repeat;filter:drop-shadow(0 8px 6px rgba(0,0,0,.25))}
+
+/* v0.5 — clean individual transparent art assets */
+.sea{background-image:linear-gradient(rgba(0,70,110,.03),rgba(0,30,45,.10)),url('assets/bg/stage1.png');background-position:center center;background-size:cover}
+.kitchen{background-image:linear-gradient(rgba(255,245,222,.03),rgba(50,25,12,.05)),url('assets/bg/stage2.png');background-position:center center;background-size:cover}
+.final-stage{background-image:linear-gradient(rgba(20,7,35,.10),rgba(15,4,25,.16)),url('assets/bg/stage3.png');background-position:center center;background-size:cover}
+.target{width:116px;height:116px;filter:drop-shadow(0 8px 5px rgba(0,0,0,.25))}
+.target img{transform:scale(1.04)}
+.drop{width:72px;height:72px;filter:drop-shadow(0 5px 4px rgba(0,0,0,.23))}
+.bowl-game{width:168px;height:112px;filter:drop-shadow(0 9px 5px rgba(0,0,0,.22))}
+.bowl-game:after{inset:-18px -20px -12px;background-image:url('assets/stage2/bowl.png')}
+.bowl-fill{left:24px;right:24px;bottom:12px;border-radius:14px 14px 48px 48px}
+.goal-line{left:18px;right:18px}
+.catch-mouth{left:16px;right:16px}
+.stage-title{font-size:14px;padding:8px 14px;border-width:3px}
+.score-pill,.timer-big{font-size:12px}
+.hint{font-size:11px;max-width:88%;left:50%;transform:translateX(-50%)}
+.result-card .dish-art{width:min(82vw,350px);height:235px}
+.dj-dish{width:min(70vw,330px);max-height:260px;object-fit:contain;filter:drop-shadow(0 12px 7px rgba(0,0,0,.30))}
