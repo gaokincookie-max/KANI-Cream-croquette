@@ -169,20 +169,31 @@
   function startStage2(){
     clearAsync();state.stage=2;setStage('2 / 3　クリーム');
     const area=mountHud();area.classList.add('kitchen');
-    area.innerHTML=`<div class="tile-lines"></div><div class="stage-title">第2工程　2/3を支配せよ！</div><div class="timer-big">残り <b id="timer">30.0</b></div><div class="bowl-game" id="bowl"><div class="bowl-fill" id="bowlFill"></div><div class="goal-line"></div><div class="goal-label">目標量</div></div><div class="volume-meter"><div class="volume-bar"><i id="vFill"></i><b></b></div><div id="vText">0 / 100</div><div class="dominant" id="dominant">主成分：—</div></div><div class="hint">左右にドラッグ。目標量100に近づけつつ、同じ液体を2/3以上に。</div>`;
+    area.innerHTML=`<div class="tile-lines"></div><div class="stage-title">第2工程　2/3を支配せよ！</div><div class="timer-big">残り <b id="timer">16.0</b></div><div class="throw-label left">← 投入口</div><div class="throw-label right">投入口 →</div><div class="bowl-game" id="bowl"><div class="catch-mouth"><span>ここで回収</span></div><div class="bowl-fill" id="bowlFill"></div><div class="goal-line"></div><div class="goal-label">目標量</div></div><div class="volume-meter"><div class="volume-bar"><i id="vFill"></i><b></b></div><div id="vText">0 / 100</div><div class="dominant" id="dominant">主成分：—</div></div><div class="hint">左右から飛んでくる材料をボウルでキャッチ。青い口を通ったものだけ回収！</div>`;
     updateCook('ボウルを構えた！',`前工程：${state.catch?.name||'なし'}`,'🥣');
     const bowl=area.querySelector('#bowl'), fill=area.querySelector('#bowlFill'), vFill=area.querySelector('#vFill'), timerEl=area.querySelector('#timer'), domEl=area.querySelector('#dominant'), vText=area.querySelector('#vText');
-    let bowlX=area.clientWidth/2, drops=[], active=true, time=30, last=performance.now(), spawnAcc=0;
+    let bowlX=area.clientWidth/2, drops=[], active=true, time=16, last=performance.now(), spawnAcc=0;
     const mix={}; state.amount=0;
 
-    function setBowl(x){bowlX=clamp(x,58,area.clientWidth-58);bowl.style.left=bowlX+'px'} setBowl(bowlX);
-    area.addEventListener('pointerdown',e=>{area.setPointerCapture?.(e.pointerId);setBowl(e.offsetX)});
-    area.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch')setBowl(e.offsetX)});
+    function setBowl(x){bowlX=clamp(x,62,area.clientWidth-62);bowl.style.left=bowlX+'px'} setBowl(bowlX);
+    function pointerX(e){const ar=area.getBoundingClientRect();return e.clientX-ar.left}
+    area.addEventListener('pointerdown',e=>{area.setPointerCapture?.(e.pointerId);setBowl(pointerX(e))});
+    area.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch')setBowl(pointerX(e))});
 
     function addDrop(){
       const l=weightedLiquid(), el=document.createElement('div');el.className='drop';el.textContent=l.icon;
-      const x=r(26,area.clientWidth-52);el.style.left=x+'px';area.appendChild(el);
-      drops.push({l,el,x,y:-58,vy:r(135,195)*(time<8?1.45:time<15?1.18:1),rot:r(-25,25)});
+      const fromLeft=Math.random()<.5;
+      const startX=fromLeft?-62:area.clientWidth+10;
+      const startY=r(90,Math.max(125,area.clientHeight*.30));
+      // Aim the arc at a random point near the lower play field. The bowl still has to be moved under it.
+      const targetX=r(72,area.clientWidth-72);
+      const targetY=area.clientHeight*.78;
+      const flight=r(.72,.98);
+      const gravity=r(760,930);
+      const vx=(targetX-startX)/flight;
+      const vy=(targetY-startY-.5*gravity*flight*flight)/flight;
+      el.style.left='0px';el.style.top='0px';area.appendChild(el);
+      drops.push({l,el,x:startX,y:startY,prevY:startY,vx,vy,g:gravity,rot:r(-25,25),vr:r(-120,120)});
     }
     function currentDominant(){
       const total=Object.values(mix).reduce((a,b)=>a+b,0);if(!total)return null;
@@ -195,18 +206,24 @@
       if(d) fill.style.background=d.l.color;
     }
     function loop(now){
-      if(!active)return;const dt=Math.min((now-last)/1000,.04);last=now;time-=dt;timerEl.textContent=Math.max(0,time).toFixed(1);
-      spawnAcc+=dt;const interval=time<6?.28:time<14?.42:.62;
-      if(spawnAcc>=interval){spawnAcc=0;addDrop();if(time<8&&Math.random()<.28)addDrop()}
+      if(!active)return;const dt=Math.min((now-last)/1000,.035);last=now;time-=dt;timerEl.textContent=Math.max(0,time).toFixed(1);
+      spawnAcc+=dt;
+      const interval=time<3.5?.18:time<8?.24:.31;
+      if(spawnAcc>=interval){spawnAcc=0;addDrop();if(time<7&&Math.random()<.28)addDrop()}
       const br=bowl.getBoundingClientRect(), ar=area.getBoundingClientRect();
-      for(let i=drops.length-1;i>=0;i--){const d=drops[i];d.y+=d.vy*dt;d.rot+=35*dt;d.el.style.transform=`translateY(${d.y}px) rotate(${d.rot}deg)`;
-        const dx=d.x+26, dy=d.y+26;
-        const bowlLeft=br.left-ar.left,bowlTop=br.top-ar.top;
-        if(dy>bowlTop && dy<bowlTop+40 && dx>bowlLeft-8 && dx<bowlLeft+br.width+8){
+      const bowlLeft=br.left-ar.left, bowlTop=br.top-ar.top;
+      const catchY=bowlTop+2;
+      for(let i=drops.length-1;i>=0;i--){
+        const d=drops[i];d.prevY=d.y;d.vy+=d.g*dt;d.x+=d.vx*dt;d.y+=d.vy*dt;d.rot+=d.vr*dt;
+        d.el.style.transform=`translate(${d.x}px, ${d.y}px) rotate(${d.rot}deg)`;
+        const centerX=d.x+26, centerY=d.y+26, prevCenterY=d.prevY+26;
+        // Catch exactly when the item's center crosses the visible blue bowl-mouth line while descending.
+        if(d.vy>0 && prevCenterY<catchY && centerY>=catchY && centerX>bowlLeft+7 && centerX<bowlLeft+br.width-7){
           mix[d.l.id]=(mix[d.l.id]||0)+d.l.amount;state.amount+=d.l.amount;d.el.remove();drops.splice(i,1);refresh();
+          bowl.classList.remove('catch-pop');void bowl.offsetWidth;bowl.classList.add('catch-pop');
           updateCook(`${d.l.name}を入れた！`,`総量 ${Math.round(state.amount)} / 100`,'🥣');continue;
         }
-        if(d.y>area.clientHeight+70){d.el.remove();drops.splice(i,1)}
+        if(d.y>area.clientHeight+80 || d.x<-120 || d.x>area.clientWidth+120){d.el.remove();drops.splice(i,1)}
       }
       if(time<=0){active=false;finishStage2();return} raf=requestAnimationFrame(loop);
     }
@@ -232,7 +249,7 @@
   function startStage3(){
     clearAsync();state.stage=3;setStage('3 / 3　FINAL');screen.innerHTML=`<section class="final-stage" id="final"><div class="lights"></div><div class="audience"></div><div class="host">🎤</div><div class="judge">🧑‍⚖️</div><div class="final-card"><h2>最終工程　◯げる</h2><div class="word-slot" id="word">揚げる</div></div><button class="stop-btn" id="stop">ここだ！</button></section>`;
     const word=screen.querySelector('#word'),btn=screen.querySelector('#stop');let i=0,running=true,lastSwap=0;
-    function spin(t){if(!running)return;if(t-lastSwap>95){lastSwap=t;i=(i+1)%verbs.length;word.textContent=verbs[i].label;}raf=requestAnimationFrame(spin)}raf=requestAnimationFrame(spin);
+    function spin(t){if(!running)return;if(t-lastSwap>190){lastSwap=t;i=(i+1)%verbs.length;word.textContent=verbs[i].label;}raf=requestAnimationFrame(spin)}raf=requestAnimationFrame(spin);
     btn.onclick=()=>{if(!running)return;running=false;cancelAnimationFrame(raf);state.verb=verbs[i];btn.remove();showVerbEvent(verbs[i]);};
   }
 
@@ -252,7 +269,7 @@
     const titles={fry:'カリカリ度を決めろ！',burn:'一瞬の完璧な火入れを見切れ！',throw:'投げる強さを決めろ！'};
     panel.innerHTML=`<div class="skill-title">${titles[v.id]}</div><div class="skill-track"><div class="great-zone"></div><div class="perfect-zone"></div><div class="needle" id="needle"></div></div><button class="skill-btn">STOP</button>`;final.appendChild(panel);
     const needle=panel.querySelector('#needle'),stop=panel.querySelector('button');let pos=0,dir=1,last=performance.now(),done=false;
-    const speed=v.id==='burn'?2.9:v.id==='throw'?1.0:1.35; // normalized track lengths per sec
+    const speed=v.id==='burn'?2.9:v.id==='throw'?.78:.95; // normalized track lengths per sec
     function loop(now){if(done)return;const dt=(now-last)/1000;last=now;pos+=dir*speed*dt;
       if(v.id==='burn'){
         if(pos>1.12){done=true;state.finishScore=0;state.finishLabel='真っ黒焦げ';state.art+=20;needle.style.left='110%';toast('焦げた！！');return later(finishGame,950)}
