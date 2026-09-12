@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#f6d25a" />
+  <title>カニ・クリーム・コロッケ Prototype</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand-mini">KANI CREAM KOROKKE</div>
+      <div id="stageChip" class="stage-chip">MENU</div>
+    </header>
+    <main id="screen"></main>
+  </div>
+
+  <template id="menuTpl">
+    <section class="menu-screen screen-panel">
+      <div class="hero-logo">
+        <span class="hero-kani">カニ</span><span class="hero-dot">・</span><span class="hero-cream">クリーム</span><span class="hero-dot">・</span><span class="hero-koro">コロッケ</span>
+      </div>
+      <p class="tagline">甲殻と乳脂肪と油の三種競技</p>
+      <div class="mascot-scene">
+        <div class="mascot cook">👨‍🍳</div>
+        <div class="mascot crab">🦀</div>
+        <div class="mascot bowl">🥣</div>
+        <div class="mascot croquette">🟤</div>
+      </div>
+      <div class="menu-buttons">
+        <button class="big-btn primary" data-action="start">作る！</button>
+        <button class="big-btn" data-action="book">料理図鑑</button>
+        <button class="big-btn" data-action="settings">設定</button>
+      </div>
+      <p class="version-note">Prototype 0.1 — 縦画面スマホ向け</p>
+    </section>
+  </template>
+
+  <template id="hudTpl">
+    <section class="play-shell">
+      <div class="sub-stage">
+        <div class="cook-strip">
+          <div id="cookAvatar" class="cook-avatar">👨‍🍳</div>
+          <div class="cook-copy">
+            <div id="cookLine" class="cook-line">準備中…</div>
+            <div id="ingredientLine" class="ingredient-line">食材：—</div>
+          </div>
+          <div id="miniDish" class="mini-dish">🍽️</div>
+        </div>
+      </div>
+      <div id="playArea" class="play-area"></div>
+    </section>
+  </template>
+
+  <script src="game.js"></script>
+</body>
+</html>
