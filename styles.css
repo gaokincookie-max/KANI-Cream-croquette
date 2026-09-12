@@ -52,3 +52,40 @@ button{font:inherit}
 /* Prototype 0.3 — Stage 2 throws begin behind the upper chef panel. */
 .throw-label{top:2px;opacity:.46;font-size:9px;border-top-left-radius:0;border-top-right-radius:0}
 .kitchen::before{content:"";position:absolute;z-index:10;left:0;right:0;top:0;height:14px;background:linear-gradient(rgba(33,29,26,.16),transparent);pointer-events:none}
+
+/* v0.4 — full-screen playfield / illustrated asset pass */
+.play-shell{height:100%;display:block;background:#111}
+.sub-stage{display:none!important}
+.play-area{height:100%;position:relative;overflow:hidden;touch-action:none;background-size:cover;background-position:center}
+.sea{background-image:linear-gradient(rgba(15,55,80,.08),rgba(10,30,35,.08)),url('assets/bg/stage1.png');background-size:cover;background-position:center}
+.sea:after{display:none}
+.kitchen{background-image:linear-gradient(rgba(255,248,225,.06),rgba(70,35,20,.06)),url('assets/bg/stage2.png');background-size:cover;background-position:center}
+.tile-lines{display:none}
+.final-stage{background-image:linear-gradient(rgba(25,8,35,.22),rgba(15,5,20,.30)),url('assets/bg/stage3.png');background-size:cover;background-position:center;color:#fff}
+.target{width:88px;height:88px;font-size:0;display:grid;place-items:center;filter:drop-shadow(0 7px 4px rgba(0,0,0,.28));pointer-events:none}
+.target img{width:100%;height:100%;object-fit:contain;display:block}
+.target.shadowy img{filter:brightness(0);opacity:.55}
+.target.shadowy{filter:none}
+.drop{width:58px;height:58px;font-size:0;filter:drop-shadow(0 4px 3px rgba(0,0,0,.2))}
+.drop img{width:100%;height:100%;object-fit:contain;display:block}
+.bowl-game{width:138px;height:92px;border:0;background:transparent;overflow:visible;border-radius:0;filter:drop-shadow(0 8px 5px rgba(0,0,0,.22))}
+.bowl-game:after{content:"";position:absolute;inset:-14px -18px -8px;background:url('assets/stage2/bowl.png') center/contain no-repeat;z-index:4;pointer-events:none}
+.bowl-fill{left:17px;right:17px;bottom:10px;border-radius:10px 10px 42px 42px;opacity:.72;z-index:2;overflow:hidden}
+.goal-line{left:12px;right:12px;z-index:6}.goal-label{z-index:7;text-shadow:0 1px #fff}
+.catch-mouth{z-index:8;left:8px;right:8px}
+.stage-title{top:12px;background:rgba(26,23,22,.90);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.score-pill,.timer-big{background:rgba(255,255,255,.94);backdrop-filter:blur(4px)}
+.hint{background:rgba(255,255,255,.92);backdrop-filter:blur(6px)}
+.transition{background:radial-gradient(circle at 50% 40%,#fff8d9,#efc65d 65%,#c86735);color:#211d1a}
+.transition .moving-cook,.transition .road{display:none}
+.transition h2{position:static;font-size:32px;text-shadow:0 3px 0 rgba(255,255,255,.65)}
+.transition:after{content:"NEXT";position:absolute;bottom:18%;font-size:13px;font-weight:1000;letter-spacing:.4em;opacity:.55}
+.asset-status{position:absolute;z-index:22;left:10px;top:54px;display:flex;gap:6px;align-items:center;padding:6px 8px;border-radius:12px;background:rgba(20,18,17,.76);color:#fff;font-size:10px;font-weight:900;backdrop-filter:blur(4px)}
+.asset-status img{width:28px;height:28px;object-fit:contain}
+.result-card .dish-art{font-size:0;width:min(76vw,320px);height:210px;margin:10px auto;display:grid;place-items:center;background:none}
+.result-card .dish-art img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 10px 7px rgba(0,0,0,.18))}
+.menu-screen{background:radial-gradient(circle at 50% 18%,#fff9d8 0,#f9df79 55%,#e97645 100%)}
+.mascot-scene{background:url('assets/bg/stage3.png') center/cover no-repeat}
+.mascot-scene .cook,.mascot-scene .bowl,.mascot-scene .croquette{display:none}
+.mascot-scene .crab{font-size:0;left:50%;top:50%;width:120px;height:120px;transform:translate(-50%,-50%)}
+.mascot-scene .crab:after{content:"";position:absolute;inset:0;background:url('assets/stage1/crab.png') center/contain no-repeat;filter:drop-shadow(0 8px 6px rgba(0,0,0,.25))}

@@ -60,23 +60,23 @@
   }
 
   function showTransition(title,subtitle,next,delay=1500){
-    clearAsync(); setStage('MOVE'); screen.innerHTML=`<section class="transition"><h2>${title}<br><small>${subtitle}</small></h2><div class="moving-cook">👨‍🍳🛒</div><div class="road"></div></section>`;
+    clearAsync(); setStage('MOVE'); screen.innerHTML=`<section class="transition"><h2>${title}<br><small>${subtitle}</small></h2></section>`;
     later(next,delay);
   }
 
   // ---------- STAGE 1 ----------
   const stage1Items = [
-    {id:'crab',name:'カニ',icon:'🦀',good:true,base:100,weight:28},
-    {id:'hairy',name:'毛ガニ',icon:'🦀',good:true,base:125,weight:10,speed:1.18},
-    {id:'king',name:'タラバガニ',icon:'🦀',good:true,base:145,weight:7,speed:1.32},
-    {id:'small',name:'小さいカニ',icon:'🦀',good:true,base:80,weight:7,speed:.9},
-    {id:'kanikama',name:'カニカマ',icon:'🍥',good:false,base:45,weight:14},
-    {id:'kombu',name:'昆布',icon:'🌿',good:false,base:35,weight:9},
-    {id:'boot',name:'長靴',icon:'🥾',good:false,base:15,weight:6},
-    {id:'star',name:'ヒトデ',icon:'⭐',good:false,base:30,weight:6},
-    {id:'glove',name:'赤い手袋',icon:'🧤',good:false,base:25,weight:5},
+    {id:'crab',name:'カニ',icon:'🦀',img:'assets/stage1/crab.png',good:true,base:100,weight:28},
+    {id:'hairy',name:'毛ガニ',icon:'🦀',img:'assets/stage1/hairy.png',good:true,base:125,weight:10,speed:1.18},
+    {id:'king',name:'タラバガニ',icon:'🦀',img:'assets/stage1/king.png',good:true,base:145,weight:7,speed:1.32},
+    {id:'small',name:'小さいカニ',icon:'🦀',img:'assets/stage1/small.png',good:true,base:80,weight:7,speed:.9},
+    {id:'kanikama',name:'カニカマ',icon:'🍥',img:'assets/stage1/kanikama.png',good:false,base:45,weight:14},
+    {id:'kombu',name:'昆布',icon:'🌿',img:'assets/stage1/kombu.png',good:false,base:35,weight:9},
+    {id:'boot',name:'長靴',icon:'🥾',img:'assets/stage1/boot.png',good:false,base:15,weight:6},
+    {id:'star',name:'ヒトデ',icon:'⭐',img:'assets/stage1/star.png',good:false,base:30,weight:6},
+    {id:'glove',name:'赤い手袋',icon:'🧤',img:'assets/stage1/glove.png',good:false,base:25,weight:5},
     {id:'can',name:'空き缶',icon:'🥫',good:false,base:10,weight:4},
-    {id:'mystery',name:'何か',icon:'❓',good:false,base:20,weight:4}
+    {id:'mystery',name:'カニのおもちゃ',icon:'❓',img:'assets/stage1/toy.png',good:false,base:20,weight:4}
   ];
   function weightedItem(){
     const total=stage1Items.reduce((s,x)=>s+x.weight,0); let n=Math.random()*total;
@@ -86,7 +86,7 @@
   function startStage1(){
     clearAsync(); state.stage=1;setStage('1 / 3　カニ');
     const area=mountHud(); area.classList.add('sea');
-    area.innerHTML=`<div class="stage-title">第1工程　1匹だけ獲れ！</div><div class="score-pill">候補 <b id="seenCount">0 / 8</b></div><div class="rock left"></div><div class="rock right"></div><div id="spear" class="spear"></div><div class="hint">画面をタップして銛！　空振りすると回収中に次を逃します。</div>`;
+    area.innerHTML=`<div class="stage-title">第1工程　1匹だけ獲れ！</div><div class="asset-status"><span>獲物</span><b id="statusCatch">—</b></div><div class="score-pill">候補 <b id="seenCount">0 / 8</b></div><div class="rock left"></div><div class="rock right"></div><div id="spear" class="spear"></div><div class="hint">画面をタップして銛！　空振りすると回収中に次を逃します。</div>`;
     updateCook('獲物待ち…','獲得食材：まだなし','🧺');
     let current=null, cooldown=false, seen=0, startHit=0, phase='waiting', fromLeft=true;
     const spear=area.querySelector('#spear');
@@ -105,7 +105,7 @@
       seen++; area.querySelector('#seenCount').textContent=`${seen} / 8`;
       const item=weightedItem(); fromLeft=Math.random()<.5;
       const fake=Math.random()<.22; // feint: shadow peeks then retreats
-      const target=document.createElement('div');target.className='target shadowy';target.textContent=item.icon;
+      const target=document.createElement('div');target.className='target shadowy';target.style.top=r(38,57)+'%';target.innerHTML=item.img?`<img src="${item.img}" alt="${item.name}">`:item.icon;
       target.style.left=fromLeft?'-4%':'84%'; area.appendChild(target); phase='tease';
       const teaseX=fromLeft?'17%':'69%'; target.animate([{left:target.style.left},{left:teaseX}],{duration:220,fill:'forwards',easing:'ease-out'});
       later(()=>{
@@ -154,22 +154,22 @@
 
   // ---------- STAGE 2 ----------
   const liquids=[
-    {id:'cream',name:'クリーム',icon:'🥛',amount:11,weight:30,color:'#fff0ce'},
-    {id:'ice',name:'バニラアイス',icon:'🍨',amount:17,weight:17,color:'#fff7e8'},
-    {id:'yogurt',name:'ヨーグルト',icon:'🥣',amount:12,weight:13,color:'#f7f4ef'},
-    {id:'mayo',name:'マヨネーズ',icon:'🧴',amount:8,weight:10,color:'#fff0a9'},
-    {id:'milk',name:'牛乳',icon:'🥛',amount:7,weight:10,color:'#f7fbff'},
-    {id:'condensed',name:'練乳',icon:'🧃',amount:9,weight:7,color:'#fff4d9'},
-    {id:'foam',name:'シェービングフォーム',icon:'🫧',amount:10,weight:5,color:'#ecf6ff'},
-    {id:'tofu',name:'豆腐',icon:'⬜',amount:15,weight:4,color:'#f6f1dc'},
-    {id:'mystery',name:'謎の白いもの',icon:'❔',amount:13,weight:4,color:'#ddd'}
+    {id:'cream',name:'クリーム',icon:'🥛',img:'assets/stage2/cream.png',amount:11,weight:30,color:'#fff0ce'},
+    {id:'ice',name:'バニラアイス',icon:'🍨',img:'assets/stage2/ice.png',amount:17,weight:17,color:'#fff7e8'},
+    {id:'yogurt',name:'ヨーグルト',icon:'🥣',img:'assets/stage2/yogurt.png',amount:12,weight:13,color:'#f7f4ef'},
+    {id:'mayo',name:'マヨネーズ',icon:'🧴',img:'assets/stage2/mayo.png',amount:8,weight:10,color:'#fff0a9'},
+    {id:'milk',name:'牛乳',icon:'🥛',img:'assets/stage2/milk.png',amount:7,weight:10,color:'#f7fbff'},
+    {id:'condensed',name:'練乳',icon:'🧃',img:'assets/stage2/condensed.png',amount:9,weight:7,color:'#fff4d9'},
+    {id:'foam',name:'シェービングフォーム',icon:'🫧',img:'assets/stage2/foam.png',amount:10,weight:5,color:'#ecf6ff'},
+    {id:'tofu',name:'ホワイトソース',icon:'⬜',img:'assets/stage2/sauce.png',amount:15,weight:4,color:'#f6f1dc'},
+    {id:'mystery',name:'白いペンキ',icon:'❔',img:'assets/stage2/white.png',amount:13,weight:4,color:'#ddd'}
   ];
   function weightedLiquid(){const total=liquids.reduce((s,x)=>s+x.weight,0);let n=Math.random()*total;for(const x of liquids){n-=x.weight;if(n<=0)return x}return liquids[0]}
 
   function startStage2(){
     clearAsync();state.stage=2;setStage('2 / 3　クリーム');
     const area=mountHud();area.classList.add('kitchen');
-    area.innerHTML=`<div class="tile-lines"></div><div class="stage-title">第2工程　2/3を支配せよ！</div><div class="timer-big">残り <b id="timer">16.0</b></div><div class="throw-label left">← 上から投げ込み</div><div class="throw-label right">上から投げ込み →</div><div class="bowl-game" id="bowl"><div class="catch-mouth"><span>ここで回収</span></div><div class="bowl-fill" id="bowlFill"></div><div class="goal-line"></div><div class="goal-label">目標量</div></div><div class="volume-meter"><div class="volume-bar"><i id="vFill"></i><b></b></div><div id="vText">0 / 100</div><div class="dominant" id="dominant">主成分：—</div></div><div class="hint">左右から飛んでくる材料をボウルでキャッチ。青い口を通ったものだけ回収！</div>`;
+    area.innerHTML=`<div class="tile-lines"></div><div class="stage-title">第2工程　2/3を支配せよ！</div><div class="asset-status"><img src="${state.catch?.img||'assets/stage1/crab.png'}" alt=""><span>${state.catch?.name||'食材なし'}</span></div><div class="timer-big">残り <b id="timer">16.0</b></div><div class="bowl-game" id="bowl"><div class="catch-mouth"><span>ここで回収</span></div><div class="bowl-fill" id="bowlFill"></div><div class="goal-line"></div><div class="goal-label">目標量</div></div><div class="volume-meter"><div class="volume-bar"><i id="vFill"></i><b></b></div><div id="vText">0 / 100</div><div class="dominant" id="dominant">主成分：—</div></div><div class="hint">左右から飛んでくる材料をボウルでキャッチ。青い口を通ったものだけ回収！</div>`;
     updateCook('ボウルを構えた！',`前工程：${state.catch?.name||'なし'}`,'🥣');
     const bowl=area.querySelector('#bowl'), fill=area.querySelector('#bowlFill'), vFill=area.querySelector('#vFill'), timerEl=area.querySelector('#timer'), domEl=area.querySelector('#dominant'), vText=area.querySelector('#vText');
     let bowlX=area.clientWidth/2, drops=[], active=true, time=16, last=performance.now(), spawnAcc=0;
@@ -181,7 +181,7 @@
     area.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch')setBowl(pointerX(e))});
 
     function addDrop(){
-      const l=weightedLiquid(), el=document.createElement('div');el.className='drop';el.textContent=l.icon;
+      const l=weightedLiquid(), el=document.createElement('div');el.className='drop';el.innerHTML=l.img?`<img src="${l.img}" alt="${l.name}">`:l.icon;
       const fromLeft=Math.random()<.5;
       const startX=fromLeft?-62:area.clientWidth+10;
       const startY=r(-82,-28); // upper chef panel の裏側から飛び込んでくるように、play-areaの外から開始
@@ -248,7 +248,7 @@
     {id:'age',label:'アげる',weight:8}
   ];
   function startStage3(){
-    clearAsync();state.stage=3;setStage('3 / 3　FINAL');screen.innerHTML=`<section class="final-stage" id="final"><div class="lights"></div><div class="audience"></div><div class="host">🎤</div><div class="judge">🧑‍⚖️</div><div class="final-card"><h2>最終工程　◯げる</h2><div class="word-slot" id="word">揚げる</div></div><button class="stop-btn" id="stop">ここだ！</button></section>`;
+    clearAsync();state.stage=3;setStage('3 / 3　FINAL');screen.innerHTML=`<section class="final-stage" id="final"><div class="lights"></div><div class="audience"></div><div class="final-card"><h2>最終工程　◯げる</h2><div class="word-slot" id="word">揚げる</div></div><button class="stop-btn" id="stop">ここだ！</button></section>`;
     const word=screen.querySelector('#word'),btn=screen.querySelector('#stop');let i=0,running=true,lastSwap=0;
     function spin(t){if(!running)return;if(t-lastSwap>190){lastSwap=t;i=(i+1)%verbs.length;word.textContent=verbs[i].label;}raf=requestAnimationFrame(spin)}raf=requestAnimationFrame(spin);
     btn.onclick=()=>{if(!running)return;running=false;cancelAnimationFrame(raf);state.verb=verbs[i];btn.remove();showVerbEvent(verbs[i]);};
@@ -290,7 +290,7 @@
   }
 
   function startDJ(){
-    const final=screen.querySelector('#final');final.classList.add('dj-mode');final.innerHTML=`<div class="lights"></div><div class="audience"></div><div class="dj-title">KANI CREAM DJ</div><div class="dj-cook">😎</div><div class="dj-deck"></div><button class="stop-btn" id="djTap">フロアをアげる！</button>`;
+    const final=screen.querySelector('#final');final.classList.add('dj-mode');final.innerHTML=`<div class="lights"></div><div class="audience"></div><div class="dj-title">KANI CREAM DJ</div><img class="dj-dish" src="assets/dish/dj.png" alt="カニクリームDJ"><div class="dj-deck"></div><button class="stop-btn" id="djTap">フロアをアげる！</button>`;
     let taps=0,time=4.5,last=performance.now();const btn=final.querySelector('#djTap');btn.onclick=()=>{taps++;btn.textContent=`もっとアげる！ ${taps}`;};
     function loop(now){const dt=(now-last)/1000;last=now;time-=dt;if(time<=0){state.finishScore=clamp(taps*9,25,100);state.finishLabel='フロア沸騰';state.art+=250+taps*20;state.special='dj';return later(finishGame,500)}raf=requestAnimationFrame(loop)}raf=requestAnimationFrame(loop);
   }
@@ -309,6 +309,11 @@
     return `${a}${b}${v==='fry'?'揚げ':'料理'}`;
   }
   function dishIcon(){if(state.special==='dj')return '😎🎛️';if(state.special==='escaped')return '🟤💨';if(state.verb?.id==='throw')return '💥🟤';if(state.verb?.id==='burn')return '⚫';return '🟤'}
+  function dishArtSrc(){
+    if(state.special==='dj') return 'assets/dish/dj.png';
+    if(state.catch?.id==='crab' && state.liquid?.id==='cream' && state.verb?.id==='fry') return state.freshness>=95&&state.amountScore>=95&&state.finishScore>=95?'assets/dish/perfect.png':'assets/dish/true.png';
+    return state.verb?.id==='burn'?'assets/dish/true.png':'assets/dish/true.png';
+  }
   function finishGame(){
     clearAsync();setStage('RESULT');const c=calcCompletion(),mult=completionMultiplier(c),ingredientBase=(state.catch?.base||25)+(state.liquid?.id==='cream'?100:state.liquid?.id==='mystery_mix'?35:55);
     const base=Math.round(ingredientBase*10), total=Math.round(base*mult+state.art*10),name=dishName();
@@ -316,7 +321,7 @@
     if(!book.some(x=>x.name===name)){book.unshift(entry);localStorage.setItem(storageKey,JSON.stringify(book.slice(0,60)));}
     const cls=state.verb?.id==='burn'?'burnt':state.verb?.id==='throw'?'thrown':state.special==='escaped'?'escaped':'';
     const comment=resultComment(c,name);
-    screen.innerHTML=`<section class="result-screen"><div class="result-card"><div class="result-heading">本日の作品</div><div class="dish-art ${cls}">${dishIcon()}</div><div class="dish-name">『${name}』</div><div class="scores"><div class="score-box"><span>新鮮さ</span><b>${state.freshness}</b></div><div class="score-box"><span>分量</span><b>${state.amountScore}</b></div><div class="score-box"><span>${state.verb?.id==='throw'?'投擲':state.verb?.id==='age'?'盛り上がり':'仕上げ'}</span><b>${state.finishScore}</b></div><div class="score-box"><span>完成度倍率</span><b>×${mult}</b></div><div class="score-box"><span>芸術点</span><b>${state.art}</b></div><div class="score-box"><span>総合点</span><b>${total}</b></div></div><div class="comment">審査員「${comment}」</div><div class="action-row"><button class="again">もう一皿</button><button class="menu">メニュー</button></div></div></section>`;
+    screen.innerHTML=`<section class="result-screen"><div class="result-card"><div class="result-heading">本日の作品</div><div class="dish-art ${cls}"><img src="${dishArtSrc()}" alt="${name}"></div><div class="dish-name">『${name}』</div><div class="scores"><div class="score-box"><span>新鮮さ</span><b>${state.freshness}</b></div><div class="score-box"><span>分量</span><b>${state.amountScore}</b></div><div class="score-box"><span>${state.verb?.id==='throw'?'投擲':state.verb?.id==='age'?'盛り上がり':'仕上げ'}</span><b>${state.finishScore}</b></div><div class="score-box"><span>完成度倍率</span><b>×${mult}</b></div><div class="score-box"><span>芸術点</span><b>${state.art}</b></div><div class="score-box"><span>総合点</span><b>${total}</b></div></div><div class="comment">審査員「${comment}」</div><div class="action-row"><button class="again">もう一皿</button><button class="menu">メニュー</button></div></div></section>`;
     screen.querySelector('.again').onclick=startGame;screen.querySelector('.menu').onclick=showMenu;
   }
   function resultComment(c,name){
