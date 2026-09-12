@@ -169,7 +169,7 @@
   function startStage2(){
     clearAsync();state.stage=2;setStage('2 / 3　クリーム');
     const area=mountHud();area.classList.add('kitchen');
-    area.innerHTML=`<div class="tile-lines"></div><div class="stage-title">第2工程　2/3を支配せよ！</div><div class="timer-big">残り <b id="timer">16.0</b></div><div class="throw-label left">← 投入口</div><div class="throw-label right">投入口 →</div><div class="bowl-game" id="bowl"><div class="catch-mouth"><span>ここで回収</span></div><div class="bowl-fill" id="bowlFill"></div><div class="goal-line"></div><div class="goal-label">目標量</div></div><div class="volume-meter"><div class="volume-bar"><i id="vFill"></i><b></b></div><div id="vText">0 / 100</div><div class="dominant" id="dominant">主成分：—</div></div><div class="hint">左右から飛んでくる材料をボウルでキャッチ。青い口を通ったものだけ回収！</div>`;
+    area.innerHTML=`<div class="tile-lines"></div><div class="stage-title">第2工程　2/3を支配せよ！</div><div class="timer-big">残り <b id="timer">16.0</b></div><div class="throw-label left">← 上から投げ込み</div><div class="throw-label right">上から投げ込み →</div><div class="bowl-game" id="bowl"><div class="catch-mouth"><span>ここで回収</span></div><div class="bowl-fill" id="bowlFill"></div><div class="goal-line"></div><div class="goal-label">目標量</div></div><div class="volume-meter"><div class="volume-bar"><i id="vFill"></i><b></b></div><div id="vText">0 / 100</div><div class="dominant" id="dominant">主成分：—</div></div><div class="hint">左右から飛んでくる材料をボウルでキャッチ。青い口を通ったものだけ回収！</div>`;
     updateCook('ボウルを構えた！',`前工程：${state.catch?.name||'なし'}`,'🥣');
     const bowl=area.querySelector('#bowl'), fill=area.querySelector('#bowlFill'), vFill=area.querySelector('#vFill'), timerEl=area.querySelector('#timer'), domEl=area.querySelector('#dominant'), vText=area.querySelector('#vText');
     let bowlX=area.clientWidth/2, drops=[], active=true, time=16, last=performance.now(), spawnAcc=0;
@@ -184,12 +184,13 @@
       const l=weightedLiquid(), el=document.createElement('div');el.className='drop';el.textContent=l.icon;
       const fromLeft=Math.random()<.5;
       const startX=fromLeft?-62:area.clientWidth+10;
-      const startY=r(90,Math.max(125,area.clientHeight*.30));
+      const startY=r(-82,-28); // upper chef panel の裏側から飛び込んでくるように、play-areaの外から開始
       // Aim the arc at a random point near the lower play field. The bowl still has to be moved under it.
       const targetX=r(72,area.clientWidth-72);
       const targetY=area.clientHeight*.78;
-      const flight=r(.72,.98);
-      const gravity=r(760,930);
+      // v0.3: 弧を目で追えるように v0.2 より少しゆっくり。
+      const flight=r(1.02,1.28);
+      const gravity=r(560,690);
       const vx=(targetX-startX)/flight;
       const vy=(targetY-startY-.5*gravity*flight*flight)/flight;
       el.style.left='0px';el.style.top='0px';area.appendChild(el);

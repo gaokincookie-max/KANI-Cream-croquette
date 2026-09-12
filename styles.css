@@ -47,3 +47,8 @@ button{font:inherit}
 .bowl-game.catch-pop{animation:bowlCatchPop .16s ease-out}.bowl-game.catch-pop::after{border-top-color:#39b95e}
 @keyframes bowlCatchPop{50%{transform:translateX(-50%) scale(1.09)}100%{transform:translateX(-50%) scale(1)}}
 .drop{will-change:transform;font-size:44px}
+
+
+/* Prototype 0.3 — Stage 2 throws begin behind the upper chef panel. */
+.throw-label{top:2px;opacity:.46;font-size:9px;border-top-left-radius:0;border-top-right-radius:0}
+.kitchen::before{content:"";position:absolute;z-index:10;left:0;right:0;top:0;height:14px;background:linear-gradient(rgba(33,29,26,.16),transparent);pointer-events:none}
