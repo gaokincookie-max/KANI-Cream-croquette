@@ -42,6 +42,11 @@
   function toast(text){ const el=document.createElement('div');el.className='toast';el.textContent=text;screen.appendChild(el);later(()=>el.remove(),1000); }
   function pctScore(value,target,tolerance){ const err=Math.abs(value-target); return Math.round(clamp(100-(err/tolerance)*100,0,100)); }
 
+  function burstFx(parent,x,y,text='',kind='good'){
+    const fx=document.createElement('div');fx.className=`burst-fx ${kind}`;fx.style.left=x+'px';fx.style.top=y+'px';fx.innerHTML=`<i></i><b>${text}</b>`;parent.appendChild(fx);later(()=>fx.remove(),700);
+  }
+  function shake(el,kind='soft'){ if(settings.reducedMotion)return;el.classList.remove('shake-soft','shake-hard');void el.offsetWidth;el.classList.add(kind==='hard'?'shake-hard':'shake-soft');later(()=>el.classList.remove('shake-soft','shake-hard'),360); }
+
   function showMenu(){
     clearAsync(); setStage('MENU'); screen.innerHTML=''; screen.appendChild(clone(menuTpl));
     screen.querySelector('[data-action="start"]').onclick=startGame;
@@ -60,7 +65,7 @@
   }
 
   function showTransition(title,subtitle,next,delay=1500){
-    clearAsync(); setStage('MOVE'); screen.innerHTML=`<section class="transition"><h2>${title}<br><small>${subtitle}</small></h2></section>`;
+    clearAsync(); setStage('MOVE'); screen.innerHTML=`<section class="transition"><div class="transition-flash"></div><div class="transition-lines"></div><h2>${title}<br><small>${subtitle}</small></h2><div class="transition-next">NEXT</div></section>`;
     later(next,delay);
   }
 
@@ -134,6 +139,9 @@
           const fresh=Math.round(clamp(110-elapsed/7.2,20,100));
           state.catch=current.item;state.freshness=fresh;
           state.art += current.item.good?Math.round(fresh*.25):Math.round(fresh*.5);
+          const hitRect=current.target.getBoundingClientRect(),areaRect=area.getBoundingClientRect();
+          burstFx(area,hitRect.left-areaRect.left+hitRect.width/2,hitRect.top-areaRect.top+hitRect.height/2,current.item.good?'HIT!':'!?',current.item.good?'good':'weird');
+          shake(area,current.item.good?'soft':'hard');
           current.anim.cancel();current.target.remove();current=null;
           const label=fresh>=95?'神鮮':fresh>=80?'超新鮮':fresh>=60?'新鮮':fresh>=40?'普通':'遅め';
           updateCook(`${current?.item?.name||state.catch.name}を確保！`,`獲得：${state.catch.name} / 新鮮さ ${fresh}` , state.catch.icon);
@@ -144,6 +152,7 @@
       }
       // Empty thrust or missed target
       cooldown=true; phase = phase==='active' ? phase : 'cooldown';
+      shake(area,'hard');
       const mask=document.createElement('div');mask.className='cooldown-mask';mask.textContent='銛回収中…';area.appendChild(mask);
       updateCook('空振り！','次の獲物を逃すかも…','😨');
       later(()=>{cooldown=false;mask.remove(); if(!current && phase==='cooldown'){phase='waiting';scheduleNext();}},1000);
@@ -169,7 +178,7 @@
   function startStage2(){
     clearAsync();state.stage=2;setStage('2 / 3　クリーム');
     const area=mountHud();area.classList.add('kitchen');
-    area.innerHTML=`<div class="tile-lines"></div><div class="stage-title">第2工程　2/3を支配せよ！</div><div class="asset-status"><img src="${state.catch?.img||'assets/stage1/crab.png'}" alt=""><span>${state.catch?.name||'食材なし'}</span></div><div class="timer-big">残り <b id="timer">16.0</b></div><div class="bowl-game" id="bowl"><div class="catch-mouth"><span>ここで回収</span></div><div class="bowl-fill" id="bowlFill"></div><div class="goal-line"></div><div class="goal-label">目標量</div></div><div class="volume-meter"><div class="volume-bar"><i id="vFill"></i><b></b></div><div id="vText">0 / 100</div><div class="dominant" id="dominant">主成分：—</div></div><div class="hint">左右から飛んでくる材料をボウルでキャッチ。青い口を通ったものだけ回収！</div>`;
+    area.innerHTML=`<div class="tile-lines"></div><div class="stage-title">第2工程　2/3を支配せよ！</div><div class="asset-status"><img src="${state.catch?.img||'assets/stage1/crab.png'}" alt=""><span>${state.catch?.name||'食材なし'}</span></div><div class="timer-big">残り <b id="timer">16.0</b></div><div class="bowl-game" id="bowl"><img class="bowl-art" src="assets/stage2/bowl.png" alt="ボウル"><div class="catch-mouth"><span>ここで回収</span></div><div class="bowl-fill" id="bowlFill"></div><div class="goal-line"></div><div class="goal-label">目標量</div></div><div class="volume-meter"><div class="volume-bar"><i id="vFill"></i><b></b></div><div id="vText">0 / 100</div><div class="dominant" id="dominant">主成分：—</div></div><div class="hint">左右から飛んでくる材料をボウルでキャッチ。青い口を通ったものだけ回収！</div>`;
     updateCook('ボウルを構えた！',`前工程：${state.catch?.name||'なし'}`,'🥣');
     const bowl=area.querySelector('#bowl'), fill=area.querySelector('#bowlFill'), vFill=area.querySelector('#vFill'), timerEl=area.querySelector('#timer'), domEl=area.querySelector('#dominant'), vText=area.querySelector('#vText');
     let bowlX=area.clientWidth/2, drops=[], active=true, time=16, last=performance.now(), spawnAcc=0;
@@ -220,8 +229,11 @@
         const centerX=d.x+26, centerY=d.y+26, prevCenterY=d.prevY+26;
         // Catch exactly when the item's center crosses the visible blue bowl-mouth line while descending.
         if(d.vy>0 && prevCenterY<catchY && centerY>=catchY && centerX>bowlLeft+7 && centerX<bowlLeft+br.width-7){
-          mix[d.l.id]=(mix[d.l.id]||0)+d.l.amount;state.amount+=d.l.amount;d.el.remove();drops.splice(i,1);refresh();
+          mix[d.l.id]=(mix[d.l.id]||0)+d.l.amount;state.amount+=d.l.amount;
+          burstFx(area,centerX,catchY,d.l.name,'splash');
+          d.el.remove();drops.splice(i,1);refresh();
           bowl.classList.remove('catch-pop');void bowl.offsetWidth;bowl.classList.add('catch-pop');
+          shake(area,'soft');
           updateCook(`${d.l.name}を入れた！`,`総量 ${Math.round(state.amount)} / 100`,'🥣');continue;
         }
         if(d.y>area.clientHeight+80 || d.x<-120 || d.x>area.clientWidth+120){d.el.remove();drops.splice(i,1)}
@@ -251,11 +263,11 @@
     clearAsync();state.stage=3;setStage('3 / 3　FINAL');screen.innerHTML=`<section class="final-stage" id="final"><div class="lights"></div><div class="audience"></div><div class="final-card"><h2>最終工程　◯げる</h2><div class="word-slot" id="word">揚げる</div></div><button class="stop-btn" id="stop">ここだ！</button></section>`;
     const word=screen.querySelector('#word'),btn=screen.querySelector('#stop');let i=0,running=true,lastSwap=0;
     function spin(t){if(!running)return;if(t-lastSwap>190){lastSwap=t;i=(i+1)%verbs.length;word.textContent=verbs[i].label;}raf=requestAnimationFrame(spin)}raf=requestAnimationFrame(spin);
-    btn.onclick=()=>{if(!running)return;running=false;cancelAnimationFrame(raf);state.verb=verbs[i];btn.remove();showVerbEvent(verbs[i]);};
+    btn.onclick=()=>{if(!running)return;running=false;cancelAnimationFrame(raf);state.verb=verbs[i];word.classList.add('locked-word');shake(screen,'soft');btn.remove();later(()=>showVerbEvent(verbs[i]),180);};
   }
 
   function showVerbEvent(v){
-    const final=screen.querySelector('#final');const banner=document.createElement('div');banner.className='event-banner';banner.textContent=v.label+'！';final.appendChild(banner);later(()=>banner.remove(),900);
+    const final=screen.querySelector('#final');const banner=document.createElement('div');banner.className='event-banner verb-'+v.id;banner.textContent=v.label+'！';final.appendChild(banner);later(()=>banner.remove(),900);
     if(v.id==='escape'){
       state.finishScore=0;state.finishLabel='逃走';state.art+=120;state.special='escaped';
       later(()=>{const runner=document.createElement('div');runner.style.cssText='position:absolute;z-index:20;left:20%;top:52%;font-size:70px;animation:runAcross 1s linear forwards';runner.textContent='🟤💨';final.appendChild(runner);},500);
@@ -284,7 +296,7 @@
       else if(v.id==='burn'){state.finishLabel='奇跡の火入れ';state.art+=180;}
       else if(v.id==='fry')state.finishLabel=score>=95?'究極カリカリ':score>=75?'サクサク':score>=45?'普通':'しなしな';
       else if(v.id==='throw'){state.finishLabel=score>=92?'顔面ど真ん中':score>=65?'命中':score>=30?'かすった':'場外';state.art+=Math.round(score*.8);}
-      state.finishScore=score;needle.style.left=(pos*100)+'%';toast(`${state.finishLabel} ${score}`);later(finishGame,900);
+      state.finishScore=score;needle.style.left=(pos*100)+'%';if(score>=90){panel.classList.add('skill-perfect');burstFx(final,final.clientWidth/2,final.clientHeight*.47,'PERFECT!','good')}else if(score<35){shake(final,'hard')}toast(`${state.finishLabel} ${score}`);later(finishGame,1050);
     };
     raf=requestAnimationFrame(loop);
   }
