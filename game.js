@@ -178,9 +178,9 @@
   function startStage2(){
     clearAsync();state.stage=2;setStage('2 / 3　クリーム');
     const area=mountHud();area.classList.add('kitchen');
-    area.innerHTML=`<div class="tile-lines"></div><div class="stage-title">第2工程　2/3を支配せよ！</div><div class="asset-status"><img src="${state.catch?.img||'assets/stage1/crab.png'}" alt=""><span>${state.catch?.name||'食材なし'}</span></div><div class="timer-big">残り <b id="timer">16.0</b></div><div class="bowl-game" id="bowl"><img class="bowl-art" src="assets/stage2/bowl.png" alt="ボウル"><div class="catch-mouth"><span>ここで回収</span></div><div class="bowl-fill" id="bowlFill"></div><div class="goal-line"></div><div class="goal-label">目標量</div></div><div class="volume-meter"><div class="volume-bar"><i id="vFill"></i><b></b></div><div id="vText">0 / 100</div><div class="dominant" id="dominant">主成分：—</div></div><div class="hint">左右から飛んでくる材料をボウルでキャッチ。青い口を通ったものだけ回収！</div>`;
+    area.innerHTML=`<div class="tile-lines"></div><div class="stage-title">第2工程　分量を合わせろ！</div><div class="asset-status"><img src="${state.catch?.img||'assets/stage1/crab.png'}" alt=""><span>${state.catch?.name||'食材なし'}</span></div><div class="target-card pulse"><img src="assets/stage2/cream.png" alt="クリーム"><div class="target-copy"><small>これを集めろ！</small><strong>クリーム</strong></div></div><div class="timer-big">残り <b id="timer">16.0</b></div><div class="bowl-game" id="bowl"><img class="bowl-art" src="assets/stage2/bowl.png" alt="ボウル"><div class="catch-mouth"><span>ここで回収</span></div><div class="bowl-fill" id="bowlFill"></div><div class="goal-line"></div><div class="goal-label">目標量</div></div><div class="volume-meter" id="volumeMeter"><span class="meter-caption">分量</span><div class="volume-bar"><i id="vFill"></i><b></b></div><div id="vText">0 / 100</div><div class="dominant" id="dominant">主成分：—</div></div><div class="hint">左上と同じクリームを集めて、右のメーターを100に近づけよう！</div>`;
     updateCook('ボウルを構えた！',`前工程：${state.catch?.name||'なし'}`,'🥣');
-    const bowl=area.querySelector('#bowl'), fill=area.querySelector('#bowlFill'), vFill=area.querySelector('#vFill'), timerEl=area.querySelector('#timer'), domEl=area.querySelector('#dominant'), vText=area.querySelector('#vText');
+    const bowl=area.querySelector('#bowl'), fill=area.querySelector('#bowlFill'), vFill=area.querySelector('#vFill'), timerEl=area.querySelector('#timer'), domEl=area.querySelector('#dominant'), vText=area.querySelector('#vText'), volumeMeter=area.querySelector('#volumeMeter');
     let bowlX=area.clientWidth/2, drops=[], active=true, time=16, last=performance.now(), spawnAcc=0;
     const mix={}; state.amount=0;
 
@@ -214,6 +214,8 @@
       const h=clamp(state.amount/140*100,0,100);fill.style.height=h+'%';vFill.style.height=h+'%';vText.textContent=`${Math.round(state.amount)} / 100`;
       const d=currentDominant();domEl.textContent=d?`主成分：${d.ratio>=2/3?d.l.name:'???'} ${Math.round(d.ratio*100)}%`:'主成分：—';
       if(d) fill.style.background=d.l.color;
+      volumeMeter.classList.toggle('near-goal',state.amount>=92&&state.amount<=106);
+      volumeMeter.classList.toggle('over-goal',state.amount>106);
     }
     function loop(now){
       if(!active)return;const dt=Math.min((now-last)/1000,.035);last=now;time-=dt;timerEl.textContent=Math.max(0,time).toFixed(1);

@@ -147,3 +147,42 @@ button{font:inherit}
 @keyframes perfectPanel{50%{box-shadow:0 0 0 8px rgba(255,224,73,.75),0 0 55px rgba(255,224,73,.9)}100%{box-shadow:0 10px 0 rgba(0,0,0,.28)}}
 
 @media (prefers-reduced-motion:reduce){.transition-lines,.burst-fx,.locked-word,.event-banner,.skill-perfect,.shake-soft,.shake-hard{animation:none!important}}
+
+/* v0.7 — Stage 2 readability pass */
+.target-card{
+  position:absolute;z-index:22;left:12px;top:52px;
+  display:flex;align-items:center;gap:10px;
+  min-width:148px;padding:8px 12px 8px 9px;
+  background:rgba(255,255,255,.94);border:3px solid #211d1a;border-radius:17px;
+  box-shadow:0 5px 0 rgba(33,29,26,.18);
+  font-weight:1000;pointer-events:none;
+}
+.target-card img{width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 3px 2px rgba(0,0,0,.16))}
+.target-copy{display:flex;flex-direction:column;line-height:1.04}
+.target-copy small{font-size:10px;letter-spacing:.08em;color:#856633;margin-bottom:3px}
+.target-copy strong{font-size:15px;color:#d76e29;white-space:nowrap}
+.target-card.pulse{animation:targetPulse .6s ease-out}
+@keyframes targetPulse{0%{transform:scale(.82);opacity:0}55%{transform:scale(1.06);opacity:1}100%{transform:scale(1)}}
+
+.volume-meter{
+  left:auto;right:12px;bottom:18px;width:104px;padding:9px 9px 8px;
+  border-width:4px;border-radius:17px;font-size:12px;
+  box-shadow:0 6px 0 rgba(33,29,26,.18);
+}
+.volume-bar{height:168px;border-width:3px;border-radius:11px;background:#f8f3e9}
+.volume-bar>i{background:linear-gradient(#ffe89b,#f1c553)}
+.volume-bar>b{border-top-width:5px;filter:drop-shadow(0 1px 0 #fff)}
+.volume-meter .meter-caption{display:block;text-align:center;font-size:10px;letter-spacing:.08em;margin-bottom:5px;color:#6e5843}
+.volume-meter #vText{text-align:center;font-size:14px;margin-top:5px}
+.volume-meter .dominant{font-size:10px;text-align:center;margin-top:5px;white-space:normal;line-height:1.2;min-height:24px}
+.volume-meter.near-goal{animation:meterGlow .5s ease-in-out alternate infinite}
+.volume-meter.over-goal .volume-bar{box-shadow:inset 0 0 0 4px rgba(224,72,58,.35)}
+@keyframes meterGlow{to{box-shadow:0 0 0 5px rgba(255,211,73,.38),0 7px 0 rgba(33,29,26,.18)}}
+
+@media (max-width:430px){
+  .target-card{left:8px;top:48px;min-width:133px;padding:7px 9px 7px 7px;gap:7px}
+  .target-card img{width:50px;height:50px}
+  .target-copy strong{font-size:13px}.target-copy small{font-size:9px}
+  .volume-meter{right:8px;width:92px;bottom:14px;padding:7px}
+  .volume-bar{height:148px}
+}
