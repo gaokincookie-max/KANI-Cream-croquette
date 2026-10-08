@@ -335,7 +335,14 @@
     if(!book.some(x=>x.name===name)){book.unshift(entry);localStorage.setItem(storageKey,JSON.stringify(book.slice(0,60)));}
     const cls=state.verb?.id==='burn'?'burnt':state.verb?.id==='throw'?'thrown':state.special==='escaped'?'escaped':'';
     const comment=resultComment(c,name);
-    screen.innerHTML=`<section class="result-screen"><div class="result-card"><div class="result-heading">本日の作品</div><div class="dish-art ${cls}"><img src="${dishArtSrc()}" alt="${name}"></div><div class="dish-name">『${name}』</div><div class="scores"><div class="score-box"><span>新鮮さ</span><b>${state.freshness}</b></div><div class="score-box"><span>分量</span><b>${state.amountScore}</b></div><div class="score-box"><span>${state.verb?.id==='throw'?'投擲':state.verb?.id==='age'?'盛り上がり':'仕上げ'}</span><b>${state.finishScore}</b></div><div class="score-box"><span>完成度倍率</span><b>×${mult}</b></div><div class="score-box"><span>芸術点</span><b>${state.art}</b></div><div class="score-box"><span>総合点</span><b>${total}</b></div></div><div class="comment">審査員「${comment}」</div><div class="action-row"><button class="again">もう一皿</button><button class="menu">メニュー</button></div></div></section>`;
+    screen.innerHTML=`<section class="result-screen"><div class="result-card"><div class="result-heading">本日の作品</div><div class="dish-art ${cls}"><canvas id="resultDishCanvas" width="760" height="760" aria-label="${name}"></canvas></div><div class="dish-name">『${name}』</div><div class="scores"><div class="score-box"><span>新鮮さ</span><b>${state.freshness}</b></div><div class="score-box"><span>分量</span><b>${state.amountScore}</b></div><div class="score-box"><span>${state.verb?.id==='throw'?'投擲':state.verb?.id==='age'?'盛り上がり':'仕上げ'}</span><b>${state.finishScore}</b></div><div class="score-box"><span>完成度倍率</span><b>×${mult}</b></div><div class="score-box"><span>芸術点</span><b>${state.art}</b></div><div class="score-box"><span>総合点</span><b>${total}</b></div></div><div class="comment">審査員「${comment}」</div><div class="action-row"><button class="again">もう一皿</button><button class="menu">メニュー</button></div></div></section>`;
+    const dishCanvas=screen.querySelector('#resultDishCanvas');
+    if(window.KaniGameDish && dishCanvas){
+      window.KaniGameDish.render(dishCanvas,state).catch(err=>{
+        console.warn('完成料理Canvasの描画に失敗しました',err);
+        const fallback=document.createElement('img');fallback.src=dishArtSrc();fallback.alt=name;dishCanvas.replaceWith(fallback);
+      });
+    }
     screen.querySelector('.again').onclick=startGame;screen.querySelector('.menu').onclick=showMenu;
   }
   function resultComment(c,name){

@@ -186,3 +186,8 @@ button{font:inherit}
   .volume-meter{right:8px;width:92px;bottom:14px;padding:7px}
   .volume-bar{height:148px}
 }
+
+/* v0.8 — composited result dish canvas */
+.result-card .dish-art canvas{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 7px rgba(0,0,0,.18))}
+.result-card .dish-art.burnt{filter:none}
+.result-card .dish-art.thrown canvas{transform:rotate(-8deg)}
