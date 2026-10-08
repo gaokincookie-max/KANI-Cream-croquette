@@ -105,13 +105,61 @@
       if(!activeRoles.has(semantic)) continue;
       layers.push(Object.assign({},e,{uid:e.instanceId||'',role:semantic,name:e.name||semantic,visible:e.visible!==false,bound:false}));
     }
-    return {recipe,layers,mask};
+    return {recipe,layers,mask,rules};
+  }
+
+  function translateBuilt(built, dx, dy){
+    if(!dx && !dy) return built;
+    built.layers.forEach(l=>{ l.x += dx; l.y += dy; });
+    built.mask.x += dx; built.mask.y += dy;
+    return built;
+  }
+
+  function estimateBounds(built){
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    const mask=built.mask;
+    for(const l of built.layers){
+      if(l.visible===false) continue;
+      if(l.clip){
+        minX=Math.min(minX, mask.x-mask.rx);
+        maxX=Math.max(maxX, mask.x+mask.rx);
+        minY=Math.min(minY, mask.y-mask.ry);
+        maxY=Math.max(maxY, mask.y+mask.ry);
+        continue;
+      }
+      const img=images[l.assetId];
+      if(!img) continue;
+      const halfW=(img.width * (l.scale||1))/2;
+      const halfH=(img.height * (l.scale||1))/2;
+      minX=Math.min(minX, l.x-halfW);
+      maxX=Math.max(maxX, l.x+halfW);
+      minY=Math.min(minY, l.y-halfH);
+      maxY=Math.max(maxY, l.y+halfH);
+    }
+    if(!isFinite(minX)) return {minX:0,minY:0,maxX:760,maxY:760};
+    return {minX,minY,maxX,maxY};
+  }
+
+  function fitIntoCanvas(built, width, height, pad=18){
+    const b=estimateBounds(built);
+    let dx=0, dy=0;
+    if(b.minX < pad) dx += pad - b.minX;
+    if(b.maxX > width - pad) dx += (width - pad) - b.maxX;
+    if(b.minY < pad) dy += pad - b.minY;
+    if(b.maxY > height - pad) dy += (height - pad) - b.maxY;
+    return translateBuilt(built, dx, dy);
   }
 
   async function render(canvas,gameState){
     await init();
     const ctx=canvas.getContext('2d');
     const built=buildFromTemplate(gameState);
+    // Present the dish a little more to the upper-right in the result frame.
+    const baseDx = 30;
+    const baseDy = built.rules?.legs ? -92 : -38;
+    translateBuilt(built, baseDx, baseDy);
+    // Safety clamp so every decorative asset stays inside the frame.
+    fitIntoCanvas(built, canvas.width, canvas.height, 20);
     R.renderDish(ctx,images,built,{backgroundFill:null});
   }
 
