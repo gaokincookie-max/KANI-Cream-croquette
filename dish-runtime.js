@@ -156,7 +156,7 @@
     const built=buildFromTemplate(gameState);
     // Present the dish a little more to the upper-right in the result frame.
     const baseDx = 30;
-    const baseDy = built.rules?.legs ? -92 : -38;
+    const baseDy = built.rules?.legs ? -108 : -38;
     translateBuilt(built, baseDx, baseDy);
     // Safety clamp so every decorative asset stays inside the frame.
     fitIntoCanvas(built, canvas.width, canvas.height, 20);

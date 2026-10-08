@@ -33,6 +33,7 @@
   }
   function clearAsync(){ timers.forEach(clearTimeout); timers=[]; cancelAnimationFrame(raf); }
   function later(fn,ms){ const id=setTimeout(fn,ms);timers.push(id);return id; }
+  function wait(ms){ return new Promise(resolve=>later(resolve,ms)); }
   function setStage(label){ stageChip.textContent=label; }
   function clone(tpl){ return tpl.content.cloneNode(true); }
   function r(min,max){ return min+Math.random()*(max-min); }
@@ -80,7 +81,6 @@
     {id:'boot',name:'長靴',icon:'🥾',img:'assets/stage1/boot.png',good:false,base:15,weight:6},
     {id:'star',name:'ヒトデ',icon:'⭐',img:'assets/stage1/star.png',good:false,base:30,weight:6},
     {id:'glove',name:'赤い手袋',icon:'🧤',img:'assets/stage1/glove.png',good:false,base:25,weight:5},
-    {id:'can',name:'空き缶',icon:'🥫',good:false,base:10,weight:4},
     {id:'mystery',name:'カニのおもちゃ',icon:'❓',img:'assets/stage1/toy.png',good:false,base:20,weight:4}
   ];
   function weightedItem(){
@@ -108,24 +108,26 @@
     function spawn(){
       if(state.catch)return;
       seen++; area.querySelector('#seenCount').textContent=`${seen} / 8`;
-      const item=weightedItem(); fromLeft=Math.random()<.5;
-      const fake=Math.random()<.22; // feint: shadow peeks then retreats
-      const target=document.createElement('div');target.className='target shadowy';target.style.top=r(38,57)+'%';target.innerHTML=item.img?`<img src="${item.img}" alt="${item.name}">`:item.icon;
-      target.style.left=fromLeft?'-4%':'84%'; area.appendChild(target); phase='tease';
-      const teaseX=fromLeft?'17%':'69%'; target.animate([{left:target.style.left},{left:teaseX}],{duration:220,fill:'forwards',easing:'ease-out'});
+      const item=weightedItem(); fromLeft=true;
+      const fake=Math.random()<.24; // feint: shadow peeks then retreats before revealing itself
+      const target=document.createElement('div');target.className='target shadowy';target.style.top=r(39,58)+'%';target.innerHTML=item.img?`<img src="${item.img}" alt="${item.name}">`:item.icon;
+      const startX='-16%';
+      const shadowEnd=(16 + Math.random()*4).toFixed(1)+'%';
+      target.style.left=startX; area.appendChild(target); phase='tease';
+      const shadowDur=r(300,390)/(item.speed||1);
+      target.animate([{left:startX},{left:shadowEnd}],{duration:shadowDur,fill:'forwards',easing:'linear'});
       later(()=>{
-        if(fake && Math.random()<.65){
-          target.animate([{left:teaseX},{left:fromLeft?'-8%':'88%'}],{duration:170,fill:'forwards'});
-          later(()=>{target.remove();phase='waiting'; if(!cooldown)scheduleNext(); else later(scheduleNext,300);},190);
+        if(fake && Math.random()<.68){
+          target.animate([{left:shadowEnd},{left:'-10%'}],{duration:r(220,300),fill:'forwards',easing:'ease-in'});
+          later(()=>{target.remove();phase='waiting'; if(!cooldown)scheduleNext(); else later(scheduleNext,300);},320);
           return;
         }
         target.classList.remove('shadowy'); phase='active'; startHit=performance.now();
-        const dur=(r(820,1220)/(item.speed||1));
-        const end=fromLeft?'108%':'-14%';
-        const anim=target.animate([{left:teaseX},{left:end}],{duration:dur,fill:'forwards',easing:'linear'});
+        const dur=(r(980,1380)/(item.speed||1));
+        const anim=target.animate([{left:shadowEnd},{left:'108%'}],{duration:dur,fill:'forwards',easing:'linear'});
         current={item,target,anim};
         anim.onfinish=()=>{ if(current?.target===target){current=null;phase='waiting';target.remove();scheduleNext();} };
-      },250);
+      },shadowDur+30);
     }
     function fire(ev){
       ev.preventDefault(); if(cooldown||state.catch)return;
@@ -253,6 +255,7 @@
     refresh();raf=requestAnimationFrame(loop);
   }
 
+
   // ---------- STAGE 3 ----------
   const verbs=[
     {id:'fry',label:'揚げる',weight:38},
@@ -261,52 +264,300 @@
     {id:'escape',label:'逃げる',weight:14},
     {id:'age',label:'アげる',weight:8}
   ];
-  function startStage3(){
-    clearAsync();state.stage=3;setStage('3 / 3　FINAL');screen.innerHTML=`<section class="final-stage" id="final"><div class="lights"></div><div class="audience"></div><div class="final-card"><h2>最終工程　◯げる</h2><div class="word-slot" id="word">揚げる</div></div><button class="stop-btn" id="stop">ここだ！</button></section>`;
-    const word=screen.querySelector('#word'),btn=screen.querySelector('#stop');let i=0,running=true,lastSwap=0;
-    function spin(t){if(!running)return;if(t-lastSwap>190){lastSwap=t;i=(i+1)%verbs.length;word.textContent=verbs[i].label;}raf=requestAnimationFrame(spin)}raf=requestAnimationFrame(spin);
-    btn.onclick=()=>{if(!running)return;running=false;cancelAnimationFrame(raf);state.verb=verbs[i];word.classList.add('locked-word');shake(screen,'soft');btn.remove();later(()=>showVerbEvent(verbs[i]),180);};
-  }
 
-  function showVerbEvent(v){
-    const final=screen.querySelector('#final');const banner=document.createElement('div');banner.className='event-banner verb-'+v.id;banner.textContent=v.label+'！';final.appendChild(banner);later(()=>banner.remove(),900);
-    if(v.id==='escape'){
-      state.finishScore=0;state.finishLabel='逃走';state.art+=120;state.special='escaped';
-      later(()=>{const runner=document.createElement('div');runner.style.cssText='position:absolute;z-index:20;left:20%;top:52%;font-size:70px;animation:runAcross 1s linear forwards';runner.textContent='🟤💨';final.appendChild(runner);},500);
-      return later(finishGame,1900);
-    }
-    if(v.id==='age') return later(startDJ,600);
-    later(()=>startSkill(v),650);
+  function accessoryOverride(id){
+    return (window.KANI_DISH_PROJECT && window.KANI_DISH_PROJECT.overrides && window.KANI_DISH_PROJECT.overrides[id]) || '';
   }
-
-  function startSkill(v){
-    const final=screen.querySelector('#final');const panel=document.createElement('div');panel.className='skill-panel';
-    const titles={fry:'カリカリ度を決めろ！',burn:'一瞬の完璧な火入れを見切れ！',throw:'投げる強さを決めろ！'};
-    panel.innerHTML=`<div class="skill-title">${titles[v.id]}</div><div class="skill-track"><div class="great-zone"></div><div class="perfect-zone"></div><div class="needle" id="needle"></div></div><button class="skill-btn">STOP</button>`;final.appendChild(panel);
-    const needle=panel.querySelector('#needle'),stop=panel.querySelector('button');let pos=0,dir=1,last=performance.now(),done=false;
-    const speed=v.id==='burn'?2.9:v.id==='throw'?.78:.95; // normalized track lengths per sec
-    function loop(now){if(done)return;const dt=(now-last)/1000;last=now;pos+=dir*speed*dt;
-      if(v.id==='burn'){
-        if(pos>1.12){done=true;state.finishScore=0;state.finishLabel='真っ黒焦げ';state.art+=20;needle.style.left='110%';toast('焦げた！！');return later(finishGame,950)}
-      }else{if(pos>=1){pos=1;dir=-1}else if(pos<=0){pos=0;dir=1}}
-      needle.style.left=(pos*100)+'%';raf=requestAnimationFrame(loop)
-    }
-    stop.onclick=()=>{
-      if(done)return;done=true;cancelAnimationFrame(raf);const dist=Math.abs(pos-.5);
-      let score=Math.round(clamp(100-dist*230,0,100));
-      if(v.id==='burn' && dist>.085){ score=Math.round(clamp(45-dist*160,0,45)); state.finishLabel=score>25?'香ばしい焦げ':'真っ黒焦げ'; }
-      else if(v.id==='burn'){state.finishLabel='奇跡の火入れ';state.art+=180;}
-      else if(v.id==='fry')state.finishLabel=score>=95?'究極カリカリ':score>=75?'サクサク':score>=45?'普通':'しなしな';
-      else if(v.id==='throw'){state.finishLabel=score>=92?'顔面ど真ん中':score>=65?'命中':score>=30?'かすった':'場外';state.art+=Math.round(score*.8);}
-      state.finishScore=score;needle.style.left=(pos*100)+'%';if(score>=90){panel.classList.add('skill-perfect');burstFx(final,final.clientWidth/2,final.clientHeight*.47,'PERFECT!','good')}else if(score<35){shake(final,'hard')}toast(`${state.finishLabel} ${score}`);later(finishGame,1050);
+  function stage3PreviewState(overrides={}){
+    return {
+      catch: state.catch,
+      liquid: state.liquid,
+      verb: overrides.verb || state.verb || {id:'fry',label:'揚げる'},
+      finishScore: overrides.finishScore ?? state.finishScore ?? 82,
+      finishLabel: overrides.finishLabel ?? state.finishLabel ?? 'できたて',
+      freshness: state.freshness,
+      amountScore: state.amountScore,
+      special: overrides.special ?? state.special ?? null,
+      art: state.art,
+      notes: state.notes
     };
-    raf=requestAnimationFrame(loop);
+  }
+  async function renderStage3Dish(canvas, overrides={}){
+    if(!canvas || !window.KaniGameDish) return;
+    await window.KaniGameDish.render(canvas, stage3PreviewState(overrides));
+  }
+  function setStage3Caption(text, sub=''){
+    const c=screen.querySelector('#stage3Caption');
+    if(c)c.innerHTML=sub?`<strong>${text}</strong><small>${sub}</small>`:`<strong>${text}</strong>`;
+  }
+  function catchVisualHtml(){
+    return state.catch?.img ? `<img src="${state.catch.img}" alt="${state.catch.name}">` : `<span class="stage3-emoji">${state.catch?.icon||'🦀'}</span>`;
+  }
+  function showRoulette(final){
+    const wrap=final.querySelector('#rouletteWrap');
+    const word=wrap.querySelector('#word');
+    const btn=wrap.querySelector('#stop');
+    let i=0, running=true, lastSwap=0;
+    wrap.classList.add('show');
+    setStage3Caption('調理法を決めろ！','ルーレットを止めよう');
+    function spin(t){
+      if(!running) return;
+      if(t-lastSwap>190){ lastSwap=t; i=(i+1)%verbs.length; word.textContent=verbs[i].label; }
+      raf=requestAnimationFrame(spin);
+    }
+    raf=requestAnimationFrame(spin);
+    btn.onclick=async()=>{
+      if(!running) return;
+      running=false; cancelAnimationFrame(raf);
+      state.verb=verbs[i];
+      word.textContent=verbs[i].label;
+      word.classList.add('locked-word');
+      shake(screen,'soft');
+      btn.disabled=true;
+      await wait(200);
+      await resolveStage3Verb(verbs[i]);
+    };
   }
 
-  function startDJ(){
-    const final=screen.querySelector('#final');final.classList.add('dj-mode');final.innerHTML=`<div class="lights"></div><div class="audience"></div><div class="dj-title">KANI CREAM DJ</div><img class="dj-dish" src="assets/dish/dj.png" alt="カニクリームDJ"><div class="dj-deck"></div><button class="stop-btn" id="djTap">フロアをアげる！</button>`;
-    let taps=0,time=4.5,last=performance.now();const btn=final.querySelector('#djTap');btn.onclick=()=>{taps++;btn.textContent=`もっとアげる！ ${taps}`;};
-    function loop(now){const dt=(now-last)/1000;last=now;time-=dt;if(time<=0){state.finishScore=clamp(taps*9,25,100);state.finishLabel='フロア沸騰';state.art+=250+taps*20;state.special='dj';return later(finishGame,500)}raf=requestAnimationFrame(loop)}raf=requestAnimationFrame(loop);
+  function startStage3(){
+    clearAsync(); state.stage=3; setStage('3 / 3　FINAL');
+    screen.innerHTML=`<section class="final-stage stage3-cook" id="final"><div class="lights"></div><div class="audience"></div><div class="stage3-header"><h2>第3工程　クライマックス調理</h2><p>食材を鍋へ投入して、最後の運命を決めろ！</p></div><div class="stage3-scene"><div class="stage3-pot-wrap"><div class="stage3-pot-shadow"></div><div class="stage3-pot" id="pot"><div class="stage3-pot-rim"></div><div class="stage3-pot-body"></div><div class="stage3-pot-soup"></div><div class="stage3-bubble b1"></div><div class="stage3-bubble b2"></div><div class="stage3-bubble b3"></div><div class="stage3-bubble b4"></div><div class="stage3-handle left"></div><div class="stage3-handle right"></div></div></div><div class="stage3-drop ingredient" id="dropIngredient">${catchVisualHtml()}</div><div class="stage3-drop bowl" id="dropBowl"><div class="stage3-mini-bowl"><img src="assets/stage2/bowl.png" alt="ボウル"><div class="stage3-mini-fill" style="background:${state.liquid?.color||'#fff0ce'}"></div></div></div><canvas id="stage3DishCanvas" class="stage3-dish-canvas" width="760" height="760" aria-label="完成料理プレビュー"></canvas><div class="stage3-overlay" id="stage3Overlay"></div><div class="focus-burst" id="focusBurst"><div class="focus-lines"></div><b>完成！！</b></div><div class="roulette-wrap" id="rouletteWrap"><div class="roulette-title">◯げるルーレット</div><div class="word-slot" id="word">揚げる</div><button class="stop-btn roulette-stop" id="stop">ここだ！</button></div></div><div class="stage3-caption" id="stage3Caption"><strong>素材投入！</strong><small>まずは鍋に放り込もう</small></div></section>`;
+    updateCook('最終工程スタート！',`${state.catch?.name||'食材なし'} と ${state.liquid?.name||'液体なし'} を投入！`,'🍲');
+    beginStage3Flow();
+  }
+
+  async function beginStage3Flow(){
+    const final=screen.querySelector('#final');
+    if(!final) return;
+    const pot=final.querySelector('#pot');
+    const dropIngredient=final.querySelector('#dropIngredient');
+    const dropBowl=final.querySelector('#dropBowl');
+    await wait(260);
+    setStage3Caption(`${state.catch?.name||'食材'}投入！`,'上から鍋へダイブ！');
+    dropIngredient.classList.add('show');
+    await dropIngredient.animate([
+      {transform:'translate(-50%,-210%) rotate(-10deg) scale(.7)',opacity:0},
+      {transform:'translate(-50%,-25%) rotate(6deg) scale(1)',opacity:1,offset:.72},
+      {transform:'translate(-50%,35%) rotate(10deg) scale(.86)',opacity:0}
+    ],{duration:760,easing:'ease-in'}).finished.catch(()=>{});
+    dropIngredient.remove();
+    shake(pot,'soft');
+    pot.classList.add('boiling');
+    await wait(220);
+    setStage3Caption('ボウルごと投入！','ためらいは不要だ！');
+    dropBowl.classList.add('show');
+    await dropBowl.animate([
+      {transform:'translate(-50%,-220%) rotate(-5deg) scale(.8)',opacity:0},
+      {transform:'translate(-50%,-5%) rotate(3deg) scale(1)',opacity:1,offset:.72},
+      {transform:'translate(-50%,38%) rotate(8deg) scale(.88)',opacity:0}
+    ],{duration:820,easing:'ease-in'}).finished.catch(()=>{});
+    dropBowl.remove();
+    shake(pot,'hard');
+    pot.classList.add('crazy');
+    await wait(420);
+    showRoulette(final);
+  }
+
+  async function flashVerbBanner(v){
+    const final=screen.querySelector('#final');
+    const banner=document.createElement('div');
+    banner.className='event-banner verb-'+v.id;
+    banner.textContent=v.label+'！';
+    final.appendChild(banner);
+    await wait(760);
+    banner.remove();
+  }
+
+  async function launchAndLandDish(preview={}){
+    const canvas=screen.querySelector('#stage3DishCanvas');
+    if(!canvas) return null;
+    await renderStage3Dish(canvas, preview);
+    canvas.classList.add('show');
+    canvas.style.left='52%';
+    canvas.style.top='72%';
+    canvas.style.transform='translate(-50%,-50%) scale(.42)';
+    setStage3Caption('完成品、発射！','鍋から飛び出した！');
+    const anim=canvas.animate([
+      {left:'52%',top:'72%',transform:'translate(-50%,-50%) scale(.42)',opacity:0},
+      {left:'53%',top:'61%',transform:'translate(-50%,-50%) scale(.52)',opacity:1,offset:.18},
+      {left:'54%',top:'-20%',transform:'translate(-50%,-50%) scale(.54)',opacity:1,offset:.55},
+      {left:'54%',top:'47%',transform:'translate(-50%,-50%) scale(1)',opacity:1}
+    ],{duration:1220,easing:'cubic-bezier(.18,.82,.23,1)'});
+    await anim.finished.catch(()=>{});
+    canvas.style.left='54%';
+    canvas.style.top='47%';
+    canvas.style.transform='translate(-50%,-50%) scale(1)';
+    shake(screen,'soft');
+    return canvas;
+  }
+
+  async function showFocusThenResult(text='完成！！'){
+    const focus=screen.querySelector('#focusBurst');
+    if(focus){
+      focus.querySelector('b').textContent=text;
+      focus.classList.add('show');
+    }
+    burstFx(screen, screen.clientWidth/2, screen.clientHeight*.47, text, 'good');
+    await wait(980);
+    if(focus) focus.classList.remove('show');
+    await wait(240);
+    finishGame();
+  }
+
+  async function dropAccessory(kind){
+    const overlay=screen.querySelector('#stage3Overlay');
+    const src=accessoryOverride(kind);
+    if(!overlay || !src) return null;
+    const img=document.createElement('img');
+    img.className='fall-asset '+kind;
+    img.src=src;
+    overlay.appendChild(img);
+    const target = kind==='glasses'
+      ? {left:'53.6%',top:'44%'}
+      : {left:'42.5%',top:'44.5%'};
+    await img.animate([
+      {left:'55%',top:'-18%',transform:'translate(-50%,-50%) scale(.72) rotate(-10deg)',opacity:0},
+      {left:target.left,top:target.top,transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1}
+    ],{duration:620,easing:'cubic-bezier(.22,.8,.25,1)'}).finished.catch(()=>{});
+    img.style.left=target.left; img.style.top=target.top; img.style.opacity='1';
+    return img;
+  }
+
+  function runTrackSkill(v){
+    return new Promise(resolve=>{
+      const final=screen.querySelector('#final');
+      const panel=document.createElement('div'); panel.className='skill-panel stage3-skill';
+      const titles={fry:'カリカリ度を決めろ！',burn:'一瞬の完璧な火入れを見切れ！',throw:'投げる強さを決めろ！'};
+      panel.innerHTML=`<div class="skill-title">${titles[v.id]}</div><div class="skill-track"><div class="great-zone"></div><div class="perfect-zone"></div><div class="needle" id="needle"></div></div><button class="skill-btn">STOP</button>`;
+      final.appendChild(panel);
+      setStage3Caption(titles[v.id], v.id==='throw'?'ちょうど良い強さでぶん投げよう':'ベストタイミングを見極めろ');
+      const needle=panel.querySelector('#needle'), stop=panel.querySelector('button');
+      let pos=0, dir=1, last=performance.now(), done=false;
+      const speed=v.id==='burn'?2.9:v.id==='throw'?.78:.95;
+      function finish(score,label){
+        state.finishScore=score; state.finishLabel=label;
+        needle.style.left=(pos*100)+'%';
+        if(score>=90){ panel.classList.add('skill-perfect'); burstFx(final,final.clientWidth/2,final.clientHeight*.49,'PERFECT!','good'); }
+        else if(score<35){ shake(final,'hard'); }
+        if(v.id==='burn' && label==='奇跡の火入れ') state.art+=180;
+        if(v.id==='throw') state.art+=Math.round(score*.8);
+        toast(`${label} ${score}`);
+        later(()=>{ panel.remove(); resolve({score,label}); }, 420);
+      }
+      function loop(now){
+        if(done) return;
+        const dt=(now-last)/1000; last=now; pos+=dir*speed*dt;
+        if(v.id==='burn'){
+          if(pos>1.12){ done=true; state.art+=20; needle.style.left='110%'; return finish(0,'真っ黒焦げ'); }
+        }else{
+          if(pos>=1){ pos=1; dir=-1; } else if(pos<=0){ pos=0; dir=1; }
+        }
+        needle.style.left=(pos*100)+'%';
+        raf=requestAnimationFrame(loop);
+      }
+      stop.onclick=()=>{
+        if(done) return;
+        done=true; cancelAnimationFrame(raf);
+        const dist=Math.abs(pos-.5);
+        let score=Math.round(clamp(100-dist*230,0,100));
+        let label='';
+        if(v.id==='burn'){
+          if(dist>.085){ score=Math.round(clamp(45-dist*160,0,45)); label=score>25?'香ばしい焦げ':'真っ黒焦げ'; }
+          else label='奇跡の火入れ';
+        }else if(v.id==='fry'){
+          label=score>=95?'究極カリカリ':score>=75?'サクサク':score>=45?'普通':'しなしな';
+        }else if(v.id==='throw'){
+          label=score>=92?'顔面ど真ん中':score>=65?'命中':score>=30?'かすった':'場外';
+        }
+        finish(score,label);
+      };
+      raf=requestAnimationFrame(loop);
+    });
+  }
+
+  function runDJSkill(canvas){
+    return new Promise(resolve=>{
+      const final=screen.querySelector('#final');
+      const panel=document.createElement('div'); panel.className='dj-qte-panel';
+      panel.innerHTML=`<div class="dj-qte-title">フロアをアげろ！</div><div class="dj-qte-time">残り <b id="djTime">4.5</b> 秒</div><div class="dj-qte-count">ノリ <b id="djTapCount">0</b></div><button class="stop-btn dj-hit" id="djTap">連打！</button>`;
+      final.appendChild(panel);
+      let taps=0, time=4.5, last=performance.now();
+      const btn=panel.querySelector('#djTap'), timeEl=panel.querySelector('#djTime'), countEl=panel.querySelector('#djTapCount');
+      btn.onclick=()=>{ taps++; countEl.textContent=taps; btn.textContent=taps>24?'もっとアげる！':'連打！'; if(taps%6===0) burstFx(final, final.clientWidth/2, final.clientHeight*.34, 'YEAH!', 'good'); };
+      setStage3Caption('グラサン着地、DJ化！','連打してフロアを盛り上げろ');
+      function loop(now){
+        const dt=(now-last)/1000; last=now; time-=dt; timeEl.textContent=Math.max(0,time).toFixed(1);
+        if(time<=0){
+          state.finishScore=clamp(taps*9,25,100);
+          state.finishLabel='フロア沸騰';
+          state.art+=250+taps*20;
+          state.special='dj';
+          panel.remove();
+          renderStage3Dish(canvas,{verb:state.verb,special:'dj',finishScore:state.finishScore,finishLabel:state.finishLabel});
+          return resolve({taps});
+        }
+        raf=requestAnimationFrame(loop);
+      }
+      raf=requestAnimationFrame(loop);
+    });
+  }
+
+  async function resolveStage3Verb(v){
+    const final=screen.querySelector('#final');
+    const canvas=screen.querySelector('#stage3DishCanvas');
+    const wrap=screen.querySelector('#rouletteWrap');
+    wrap.classList.add('locked');
+    await flashVerbBanner(v);
+    if(v.id==='fry' || v.id==='burn'){
+      await runTrackSkill(v);
+      await wait(180);
+      await launchAndLandDish({verb:state.verb,finishScore:state.finishScore,finishLabel:state.finishLabel,special:null});
+      await showFocusThenResult(v.id==='burn'?'こんがり完成！！':'完成！！');
+      return;
+    }
+    if(v.id==='escape'){
+      state.finishScore=0; state.finishLabel='逃走'; state.art+=120; state.special='escaped';
+      await launchAndLandDish({verb:{id:'fry',label:'揚げる'},finishScore:72,finishLabel:'揚がった',special:null});
+      setStage3Caption('あれ…？','集中線が出ない……');
+      await wait(300);
+      setStage3Caption('足が生えた！','料理が逃げ出す！');
+      await renderStage3Dish(canvas,{verb:state.verb,finishScore:state.finishScore,finishLabel:state.finishLabel,special:'escaped'});
+      await wait(120);
+      await canvas.animate([
+        {left:'54%',top:'47%',transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1},
+        {left:'114%',top:'37%',transform:'translate(-50%,-50%) scale(.95) rotate(5deg)',opacity:1}
+      ],{duration:980,easing:'linear'}).finished.catch(()=>{});
+      finishGame();
+      return;
+    }
+    if(v.id==='throw'){
+      await launchAndLandDish({verb:{id:'fry',label:'揚げる'},finishScore:70,finishLabel:'揚がった',special:null});
+      setStage3Caption('まだ終わらない！','ここから投擲だ！');
+      await wait(250);
+      await runTrackSkill(v);
+      setStage3Caption('それっ！','もう一度上へ飛んでいく！');
+      await canvas.animate([
+        {left:'54%',top:'47%',transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1},
+        {left:'66%',top:'29%',transform:'translate(-50%,-50%) scale(.95) rotate(-10deg)',opacity:1,offset:.25},
+        {left:'78%',top:'-22%',transform:'translate(-50%,-50%) scale(.7) rotate(-26deg)',opacity:0}
+      ],{duration:720,easing:'cubic-bezier(.22,.8,.25,1)'}).finished.catch(()=>{});
+      finishGame();
+      return;
+    }
+    if(v.id==='age'){
+      await launchAndLandDish({verb:{id:'fry',label:'揚げる'},finishScore:80,finishLabel:'揚がった',special:null});
+      setStage3Caption('まだ完成ではない…！','何かが降ってくる！');
+      await wait(220);
+      const g=await dropAccessory('glasses');
+      await wait(120);
+      const h=await dropAccessory('headphones');
+      await wait(180);
+      state.special='dj';
+      if(g) g.remove(); if(h) h.remove();
+      await renderStage3Dish(canvas,{verb:state.verb,special:'dj',finishScore:82,finishLabel:'フロア準備OK'});
+      await runDJSkill(canvas);
+      await showFocusThenResult('アがった！！');
+    }
   }
 
   function calcCompletion(){
@@ -331,7 +582,7 @@
   function finishGame(){
     clearAsync();setStage('RESULT');const c=calcCompletion(),mult=completionMultiplier(c),ingredientBase=(state.catch?.base||25)+(state.liquid?.id==='cream'?100:state.liquid?.id==='mystery_mix'?35:55);
     const base=Math.round(ingredientBase*10), total=Math.round(base*mult+state.art*10),name=dishName();
-    const entry={name,icon:dishIcon(),date:new Date().toLocaleDateString('ja-JP'),special:state.special||state.verb?.id,catch:state.catch?.name,liquid:state.liquid?.name};
+    const entry={name,icon:dishIcon(),date:new Date().toLocaleDateString('ja-JP'),special:state.special||state.verb?.id,catch:state.catch?.name,liquid:state.liquid?.name,catchId:state.catch?.id||null,liquidId:state.liquid?.id||null,verbId:state.verb?.id||null,verbLabel:state.verb?.label||'',finishScore:state.finishScore||0,finishLabel:state.finishLabel||'—',freshness:state.freshness||0,amountScore:state.amountScore||0};
     if(!book.some(x=>x.name===name)){book.unshift(entry);localStorage.setItem(storageKey,JSON.stringify(book.slice(0,60)));}
     const cls=state.verb?.id==='burn'?'burnt':state.verb?.id==='throw'?'thrown':state.special==='escaped'?'escaped':'';
     const comment=resultComment(c,name);
@@ -356,9 +607,42 @@
     return '既存の料理観に対する強い挑戦を感じます。';
   }
 
+  function gameStateFromBookEntry(x){
+    return {
+      catch: x.catchId ? {id:x.catchId,name:x.catch||''} : null,
+      liquid: x.liquidId ? {id:x.liquidId,name:x.liquid||''} : null,
+      verb: x.verbId ? {id:x.verbId,label:x.verbLabel||''} : null,
+      finishScore: x.finishScore||0,
+      finishLabel: x.finishLabel||'—',
+      freshness: x.freshness||0,
+      amountScore: x.amountScore||0,
+      art: 0,
+      notes: [],
+      special: x.special==='escape' ? 'escaped' : (x.special==='age' ? 'dj' : (x.special||null))
+    };
+  }
+
+  function renderBookDishCards(){
+    if(!window.KaniGameDish) return;
+    screen.querySelectorAll('[data-book-canvas]').forEach(canvas=>{
+      const idx=Number(canvas.dataset.bookCanvas);
+      const entry=book[idx];
+      if(!entry) return;
+      const gs=gameStateFromBookEntry(entry);
+      window.KaniGameDish.render(canvas,gs).catch(err=>{
+        console.warn('図鑑料理Canvasの描画に失敗しました',err);
+        const wrap=canvas.closest('.book-thumb');
+        if(wrap) wrap.innerHTML=`<div class="book-fallback">${entry.icon||'🍽️'}</div>`;
+      });
+    });
+  }
+
   function showBook(){
-    clearAsync();setStage('図鑑');const items=book.map(x=>`<div class="book-item"><div class="icon">${x.icon}</div><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.catch||'')} × ${escapeHtml(x.liquid||'')}</small></div>`).join('');
-    screen.innerHTML=`<section class="book-screen"><div class="book-card"><h2>料理図鑑 <small>${book.length}品</small></h2>${items?`<div class="book-grid">${items}</div>`:'<div class="empty-note">まだ一皿も登録されていません。<br>まずは何か作ってみよう。</div>'}<button class="back-btn">戻る</button></div></section>`;screen.querySelector('.back-btn').onclick=showMenu;
+    clearAsync();setStage('図鑑');
+    const items=book.map((x,i)=>`<div class="book-item"><div class="book-thumb">${x.catchId||x.liquidId||x.verbId?`<canvas data-book-canvas="${i}" width="760" height="760" aria-label="${escapeHtml(x.name)}"></canvas>`:`<div class="book-fallback">${x.icon}</div>`}</div><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.catch||'')} × ${escapeHtml(x.liquid||'')}</small></div>`).join('');
+    screen.innerHTML=`<section class="book-screen"><div class="book-card"><h2>料理図鑑 <small>${book.length}品</small></h2>${items?`<div class="book-grid">${items}</div>`:'<div class="empty-note">まだ一皿も登録されていません。<br>まずは何か作ってみよう。</div>'}<button class="back-btn">戻る</button></div></section>`;
+    screen.querySelector('.back-btn').onclick=showMenu;
+    renderBookDishCards();
   }
   function showSettings(){
     clearAsync();setStage('設定');screen.innerHTML=`<section class="settings-screen"><div class="settings-card"><h2>設定</h2><label>効果音（プロトタイプでは未接続）</label><input id="sfx" type="range" min="0" max="100" value="${settings.sfx}"><label><input id="rm" type="checkbox" ${settings.reducedMotion?'checked':''}> 演出を控えめにする</label><button class="back-btn">保存して戻る</button></div></section>`;
