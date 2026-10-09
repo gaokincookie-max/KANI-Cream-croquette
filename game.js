@@ -293,6 +293,20 @@
   function catchVisualHtml(){
     return state.catch?.img ? `<img src="${state.catch.img}" alt="${state.catch.name}">` : `<span class="stage3-emoji">${state.catch?.icon||'🦀'}</span>`;
   }
+  async function hideRoulette(){
+    const wrap=screen.querySelector('#rouletteWrap');
+    if(!wrap || wrap.classList.contains('hidden')) return;
+    wrap.classList.add('hiding');
+    await wrap.animate([
+      {top:'16%',opacity:1,transform:'translateX(-50%) scale(1)'},
+      {top:'7%',opacity:0,transform:'translateX(-50%) scale(.92)'}
+    ],{duration:300,easing:'cubic-bezier(.22,.8,.25,1)',fill:'forwards'}).finished.catch(()=>{});
+    wrap.classList.remove('show','locked','hiding');
+    wrap.classList.add('hidden');
+    wrap.style.opacity='0';
+    wrap.style.pointerEvents='none';
+    wrap.style.top='7%';
+  }
   function showRoulette(final){
     const wrap=final.querySelector('#rouletteWrap');
     const word=wrap.querySelector('#word');
@@ -314,7 +328,9 @@
       word.classList.add('locked-word');
       shake(screen,'soft');
       btn.disabled=true;
-      await wait(200);
+      await wait(260);
+      await hideRoulette();
+      await wait(80);
       await resolveStage3Verb(verbs[i]);
     };
   }
@@ -337,9 +353,10 @@
     dropIngredient.classList.add('show');
     await dropIngredient.animate([
       {transform:'translate(-50%,-210%) rotate(-10deg) scale(.7)',opacity:0},
-      {transform:'translate(-50%,-25%) rotate(6deg) scale(1)',opacity:1,offset:.72},
-      {transform:'translate(-50%,35%) rotate(10deg) scale(.86)',opacity:0}
-    ],{duration:760,easing:'ease-in'}).finished.catch(()=>{});
+      {transform:'translate(-50%,-20%) rotate(5deg) scale(1)',opacity:1,offset:.62},
+      {transform:'translate(-50%,18%) rotate(8deg) scale(.96)',opacity:1,offset:.9},
+      {transform:'translate(-50%,40%) rotate(10deg) scale(.88)',opacity:0,offset:1}
+    ],{duration:900,easing:'ease-in'}).finished.catch(()=>{});
     dropIngredient.remove();
     shake(pot,'soft');
     pot.classList.add('boiling');
@@ -348,9 +365,10 @@
     dropBowl.classList.add('show');
     await dropBowl.animate([
       {transform:'translate(-50%,-220%) rotate(-5deg) scale(.8)',opacity:0},
-      {transform:'translate(-50%,-5%) rotate(3deg) scale(1)',opacity:1,offset:.72},
-      {transform:'translate(-50%,38%) rotate(8deg) scale(.88)',opacity:0}
-    ],{duration:820,easing:'ease-in'}).finished.catch(()=>{});
+      {transform:'translate(-50%,-2%) rotate(3deg) scale(1)',opacity:1,offset:.62},
+      {transform:'translate(-50%,20%) rotate(6deg) scale(.96)',opacity:1,offset:.9},
+      {transform:'translate(-50%,42%) rotate(9deg) scale(.9)',opacity:0,offset:1}
+    ],{duration:980,easing:'ease-in'}).finished.catch(()=>{});
     dropBowl.remove();
     shake(pot,'hard');
     pot.classList.add('crazy');
