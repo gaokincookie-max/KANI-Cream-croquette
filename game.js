@@ -222,7 +222,7 @@
     function loop(now){
       if(!active)return;const dt=Math.min((now-last)/1000,.035);last=now;time-=dt;timerEl.textContent=Math.max(0,time).toFixed(1);
       spawnAcc+=dt;
-      const interval=time<3.5?.18:time<8?.24:.31;
+      const interval=time<3.5?.21:time<8?.27:.35;
       if(spawnAcc>=interval){spawnAcc=0;addDrop();if(time<7&&Math.random()<.28)addDrop()}
       const br=bowl.getBoundingClientRect(), ar=area.getBoundingClientRect();
       const bowlLeft=br.left-ar.left, bowlTop=br.top-ar.top;
@@ -267,6 +267,12 @@
 
   function accessoryOverride(id){
     return (window.KANI_DISH_PROJECT && window.KANI_DISH_PROJECT.overrides && window.KANI_DISH_PROJECT.overrides[id]) || '';
+  }
+  function stage3TemplateSlot(id){
+    const project=window.KANI_DISH_PROJECT || {};
+    const templates=project.templates || [];
+    const preferred=templates.find(t=>t.id==='latest_user_layout_v10') || templates[templates.length-1] || null;
+    return preferred && preferred.slots ? preferred.slots[id] || null : null;
   }
   function stage3PreviewState(overrides={}){
     return {
@@ -354,8 +360,8 @@
     await dropIngredient.animate([
       {transform:'translate(-50%,-210%) rotate(-10deg) scale(.7)',opacity:0},
       {transform:'translate(-50%,-20%) rotate(5deg) scale(1)',opacity:1,offset:.62},
-      {transform:'translate(-50%,18%) rotate(8deg) scale(.96)',opacity:1,offset:.9},
-      {transform:'translate(-50%,40%) rotate(10deg) scale(.88)',opacity:0,offset:1}
+      {transform:'translate(-50%,30%) rotate(8deg) scale(.96)',opacity:1,offset:.9},
+      {transform:'translate(-50%,56%) rotate(10deg) scale(.88)',opacity:0,offset:1}
     ],{duration:900,easing:'ease-in'}).finished.catch(()=>{});
     dropIngredient.remove();
     shake(pot,'soft');
@@ -366,8 +372,8 @@
     await dropBowl.animate([
       {transform:'translate(-50%,-220%) rotate(-5deg) scale(.8)',opacity:0},
       {transform:'translate(-50%,-2%) rotate(3deg) scale(1)',opacity:1,offset:.62},
-      {transform:'translate(-50%,20%) rotate(6deg) scale(.96)',opacity:1,offset:.9},
-      {transform:'translate(-50%,42%) rotate(9deg) scale(.9)',opacity:0,offset:1}
+      {transform:'translate(-50%,32%) rotate(6deg) scale(.96)',opacity:1,offset:.9},
+      {transform:'translate(-50%,58%) rotate(9deg) scale(.9)',opacity:0,offset:1}
     ],{duration:980,easing:'ease-in'}).finished.catch(()=>{});
     dropBowl.remove();
     shake(pot,'hard');
@@ -426,18 +432,27 @@
     const overlay=screen.querySelector('#stage3Overlay');
     const src=accessoryOverride(kind);
     if(!overlay || !src) return null;
+    const slot=stage3TemplateSlot(kind) || {};
     const img=document.createElement('img');
     img.className='fall-asset '+kind;
     img.src=src;
     overlay.appendChild(img);
+    const flip = slot.flipX ? -1 : 1;
+    const endScale = kind==='glasses' ? 1 : 1;
+    const startScale = kind==='glasses' ? .72 : .72;
+    const endRotate = (slot.rotation||0);
+    const startRotate = endRotate - 10;
     const target = kind==='glasses'
       ? {left:'53.6%',top:'44%'}
       : {left:'42.5%',top:'44.5%'};
     await img.animate([
-      {left:'55%',top:'-18%',transform:'translate(-50%,-50%) scale(.72) rotate(-10deg)',opacity:0},
-      {left:target.left,top:target.top,transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1}
+      {left:'55%',top:'-18%',transform:`translate(-50%,-50%) scaleX(${flip}) scale(${startScale}) rotate(${startRotate}deg)`,opacity:0},
+      {left:target.left,top:target.top,transform:`translate(-50%,-50%) scaleX(${flip}) scale(${endScale}) rotate(${endRotate}deg)`,opacity:1}
     ],{duration:620,easing:'cubic-bezier(.22,.8,.25,1)'}).finished.catch(()=>{});
-    img.style.left=target.left; img.style.top=target.top; img.style.opacity='1';
+    img.style.left=target.left;
+    img.style.top=target.top;
+    img.style.opacity='1';
+    img.style.transform=`translate(-50%,-50%) scaleX(${flip}) scale(${endScale}) rotate(${endRotate}deg)`;
     return img;
   }
 
