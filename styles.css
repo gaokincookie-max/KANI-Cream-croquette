@@ -312,21 +312,30 @@ button{font:inherit}
   background:rgba(11,8,22,.27);
   transition:opacity .35s ease;
 }
-/* Slightly richer beams: colorful enough to read as disco, still restrained. */
+/* Slightly richer beams: clearer and visibly emitted from the mirror ball, but still restrained. */
 .dj-beams{
   z-index:9;
   background:
-    conic-gradient(from 0deg at 50% 13%,
-      rgba(92,210,255,.18) 0 7deg,
-      transparent 7deg 29deg,
-      rgba(255,103,205,.17) 29deg 36deg,
-      transparent 36deg 58deg,
-      rgba(255,218,92,.16) 58deg 65deg,
-      transparent 65deg 88deg,
-      rgba(112,245,191,.14) 88deg 95deg,
-      transparent 95deg 360deg);
+    radial-gradient(circle at 50% 14%, rgba(255,255,255,.16) 0 3%, rgba(255,255,255,0) 12%),
+    conic-gradient(from 0deg at 50% 14%,
+      rgba(92,210,255,.28) 0 8deg,
+      transparent 8deg 23deg,
+      rgba(255,103,205,.25) 23deg 31deg,
+      transparent 31deg 46deg,
+      rgba(255,218,92,.24) 46deg 54deg,
+      transparent 54deg 69deg,
+      rgba(112,245,191,.20) 69deg 77deg,
+      transparent 77deg 360deg),
+    conic-gradient(from 9deg at 50% 14%,
+      rgba(130,226,255,.16) 0 5deg,
+      transparent 5deg 26deg,
+      rgba(255,170,220,.14) 26deg 32deg,
+      transparent 32deg 57deg,
+      rgba(255,236,152,.13) 57deg 63deg,
+      transparent 63deg 360deg);
+  filter:saturate(1.08);
 }
-.dj-beams.active{opacity:.46;animation:djSweep 18s linear infinite}
+.dj-beams.active{opacity:.62;animation:djSweep 14s linear infinite}
 /* Keep all important foreground content above the darkening veil. */
 .stage3-pot-wrap{z-index:8}
 .mirrorball{z-index:11}

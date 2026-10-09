@@ -600,6 +600,8 @@
         {left:'54%',top:'47%',transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1},
         {left:'-14%',top:'37%',transform:'translate(-50%,-50%) scale(.95) rotate(-5deg)',opacity:1}
       ],{duration:980,easing:'linear'}).finished.catch(()=>{});
+      setStage3Caption('……。','逃げた先で何をしているのだろう');
+      await wait(620);
       finishGame();
       return;
     }
@@ -614,6 +616,8 @@
         {left:'66%',top:'29%',transform:'translate(-50%,-50%) scale(.95) rotate(-10deg)',opacity:1,offset:.25},
         {left:'78%',top:'-22%',transform:'translate(-50%,-50%) scale(.7) rotate(-26deg)',opacity:0}
       ],{duration:720,easing:'cubic-bezier(.22,.8,.25,1)'}).finished.catch(()=>{});
+      setStage3Caption('……。','どこまで飛んでいったのだろう');
+      await wait(620);
       finishGame();
       return;
     }
