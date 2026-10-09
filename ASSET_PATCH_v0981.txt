@@ -1,0 +1,4 @@
+v0.9.8.1 patch
+- stage1 boot/kombu/kanikama replaced with user-trimmed assets
+- reduced visual size by about two notches compared with v0.9.8
+- dishgen assets reverted to the original v0.9.7 versions (not changed in this patch)
