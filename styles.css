@@ -344,3 +344,23 @@ button{font:inherit}
 .dj-qte-panel{z-index:18}
 .focus-burst{z-index:17}
 .stage3-caption{z-index:14}
+
+
+/* v0.9.7 — stronger visible rays and quiet post-event pause */
+.dj-beams{
+  z-index:9;
+  background:
+    radial-gradient(circle at 50% 14%, rgba(255,255,255,.72) 0 1.1%, rgba(255,255,255,.26) 1.1% 2.7%, rgba(255,255,255,0) 8%),
+    repeating-conic-gradient(from 0deg at 50% 14%,
+      rgba(92,210,255,.44) 0 8deg,
+      transparent 8deg 17deg,
+      rgba(255,103,205,.40) 17deg 24deg,
+      transparent 24deg 34deg,
+      rgba(255,218,92,.36) 34deg 41deg,
+      transparent 41deg 50deg,
+      rgba(112,245,191,.34) 50deg 57deg,
+      transparent 57deg 68deg);
+  filter:blur(.6px) saturate(1.18);
+  transform-origin:50% 14%;
+}
+.dj-beams.active{opacity:.82;animation:djSweep 10s linear infinite}

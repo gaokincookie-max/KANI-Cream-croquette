@@ -273,6 +273,20 @@
   function accessoryOverride(id){
     return (window.KANI_DISH_PROJECT && window.KANI_DISH_PROJECT.overrides && window.KANI_DISH_PROJECT.overrides[id]) || '';
   }
+  function getStage3SlotTarget(kind){
+    const final=screen.querySelector('#final');
+    const canvas=screen.querySelector('#stage3DishCanvas');
+    const tpl=window.KaniGameDish?.preferredTemplate?.();
+    const slot=(tpl?.slots&&tpl.slots[kind])||{};
+    if(!final || !canvas || typeof slot.x!=='number' || typeof slot.y!=='number'){
+      return kind==='glasses' ? {left:'53.6%',top:'44%'} : {left:'42.5%',top:'44.5%'};
+    }
+    const fr=final.getBoundingClientRect();
+    const cr=canvas.getBoundingClientRect();
+    const left=(cr.left-fr.left) + (slot.x/760)*cr.width;
+    const top=(cr.top-fr.top) + (slot.y/760)*cr.height;
+    return {left:`${left}px`, top:`${top}px`};
+  }
   function stage3PreviewState(overrides={}){
     return {
       catch: state.catch,
@@ -434,9 +448,7 @@
     img.className='fall-asset '+kind;
     img.src=src;
     overlay.appendChild(img);
-    const target = kind==='glasses'
-      ? {left:'53.6%',top:'44%'}
-      : {left:'42.5%',top:'44.5%'};
+    const target = getStage3SlotTarget(kind);
     // エディターで保存された左右反転・回転を、装着前の落下素材にもそのまま適用。
     const tpl=window.KaniGameDish?.preferredTemplate?.();
     const slot=(tpl?.slots&&tpl.slots[kind])||{};
@@ -600,7 +612,8 @@
         {left:'54%',top:'47%',transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1},
         {left:'-14%',top:'37%',transform:'translate(-50%,-50%) scale(.95) rotate(-5deg)',opacity:1}
       ],{duration:980,easing:'linear'}).finished.catch(()=>{});
-      setStage3Caption('……。','逃げた先で何をしているのだろう');
+      canvas.style.left='-14%'; canvas.style.top='37%'; canvas.style.transform='translate(-50%,-50%) scale(.95) rotate(-5deg)'; canvas.style.opacity='1';
+      const cap1=screen.querySelector('#stage3Caption'); if(cap1) cap1.style.opacity='0';
       await wait(620);
       finishGame();
       return;
@@ -616,7 +629,8 @@
         {left:'66%',top:'29%',transform:'translate(-50%,-50%) scale(.95) rotate(-10deg)',opacity:1,offset:.25},
         {left:'78%',top:'-22%',transform:'translate(-50%,-50%) scale(.7) rotate(-26deg)',opacity:0}
       ],{duration:720,easing:'cubic-bezier(.22,.8,.25,1)'}).finished.catch(()=>{});
-      setStage3Caption('……。','どこまで飛んでいったのだろう');
+      canvas.style.left='78%'; canvas.style.top='-22%'; canvas.style.transform='translate(-50%,-50%) scale(.7) rotate(-26deg)'; canvas.style.opacity='0';
+      const cap2=screen.querySelector('#stage3Caption'); if(cap2) cap2.style.opacity='0';
       await wait(620);
       finishGame();
       return;
