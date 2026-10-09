@@ -420,7 +420,6 @@
       focus.querySelector('b').textContent=text;
       focus.classList.add('show');
     }
-    burstFx(screen, screen.clientWidth/2, screen.clientHeight*.47, text, 'good');
     await wait(980);
     if(focus) focus.classList.remove('show');
     await wait(240);

@@ -299,3 +299,39 @@ button{font:inherit}
   .dj-qte-title{font-size:20px}.dj-hit{font-size:22px;padding:14px 10px}
   .focus-burst b{top:7%;font-size:23px;padding:8px 13px}
 }
+
+
+/* v0.9.5 — DJ color polish + background dim + single completion label */
+/* Dim only the stage/background after the mirror ball arrives. Foreground layers stay bright. */
+.final-stage.dj-mode::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:7;
+  pointer-events:none;
+  background:rgba(11,8,22,.27);
+  transition:opacity .35s ease;
+}
+/* Slightly richer beams: colorful enough to read as disco, still restrained. */
+.dj-beams{
+  z-index:9;
+  background:
+    conic-gradient(from 0deg at 50% 13%,
+      rgba(92,210,255,.18) 0 7deg,
+      transparent 7deg 29deg,
+      rgba(255,103,205,.17) 29deg 36deg,
+      transparent 36deg 58deg,
+      rgba(255,218,92,.16) 58deg 65deg,
+      transparent 65deg 88deg,
+      rgba(112,245,191,.14) 88deg 95deg,
+      transparent 95deg 360deg);
+}
+.dj-beams.active{opacity:.46;animation:djSweep 18s linear infinite}
+/* Keep all important foreground content above the darkening veil. */
+.stage3-pot-wrap{z-index:8}
+.mirrorball{z-index:11}
+.stage3-dish-canvas{z-index:13}
+.stage3-overlay{z-index:15}
+.dj-qte-panel{z-index:18}
+.focus-burst{z-index:17}
+.stage3-caption{z-index:14}
