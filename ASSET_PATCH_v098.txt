@@ -1,0 +1,5 @@
+v0.9.8 asset patch
+- stage1/boot.png replaced with user-trimmed transparent asset
+- stage1/kombu.png replaced with user-trimmed transparent asset
+- stage1/kanikama.png replaced with user-trimmed transparent asset
+- dishgen/boots.png, dishgen/kombu.png, dishgen/kanikama.png rebuilt from trimmed assets and scaled to fit existing dish layout
