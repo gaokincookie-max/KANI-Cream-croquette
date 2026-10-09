@@ -342,7 +342,7 @@
 
   function startStage3(){
     clearAsync(); state.stage=3; setStage('3 / 3　FINAL');
-    screen.innerHTML=`<section class="final-stage stage3-cook" id="final"><div class="lights"></div><div class="audience"></div><div class="stage3-header"><h2>第3工程　クライマックス調理</h2><p>食材を鍋へ投入して、最後の運命を決めろ！</p></div><div class="stage3-scene"><div class="stage3-pot-wrap"><div class="stage3-pot-shadow"></div><div class="stage3-pot" id="pot"><div class="stage3-pot-rim"></div><div class="stage3-pot-body"></div><div class="stage3-pot-soup"></div><div class="stage3-bubble b1"></div><div class="stage3-bubble b2"></div><div class="stage3-bubble b3"></div><div class="stage3-bubble b4"></div><div class="stage3-handle left"></div><div class="stage3-handle right"></div></div></div><div class="stage3-drop ingredient" id="dropIngredient">${catchVisualHtml()}</div><div class="stage3-drop bowl" id="dropBowl"><div class="stage3-mini-bowl"><img src="assets/stage2/bowl.png" alt="ボウル"><div class="stage3-mini-fill" style="background:${state.liquid?.color||'#fff0ce'}"></div></div></div><canvas id="stage3DishCanvas" class="stage3-dish-canvas" width="760" height="760" aria-label="完成料理プレビュー"></canvas><div class="stage3-overlay" id="stage3Overlay"></div><div class="focus-burst" id="focusBurst"><div class="focus-lines"></div><b>完成！！</b></div><div class="roulette-wrap" id="rouletteWrap"><div class="roulette-title">◯げるルーレット</div><div class="word-slot" id="word">揚げる</div><button class="stop-btn roulette-stop" id="stop">ここだ！</button></div></div><div class="stage3-caption" id="stage3Caption"><strong>素材投入！</strong><small>まずは鍋に放り込もう</small></div></section>`;
+    screen.innerHTML=`<section class="final-stage stage3-cook" id="final"><div class="lights"></div><div class="audience"></div><div class="stage3-header"><h2>第3工程　クライマックス調理</h2><p>食材を鍋へ投入して、最後の運命を決めろ！</p></div><div class="stage3-scene"><div class="stage3-pot-wrap"><div class="stage3-pot-shadow"></div><div class="stage3-pot" id="pot"><div class="stage3-pot-rim"></div><div class="stage3-pot-body"></div><div class="stage3-pot-soup"></div><div class="stage3-bubble b1"></div><div class="stage3-bubble b2"></div><div class="stage3-bubble b3"></div><div class="stage3-bubble b4"></div><div class="stage3-handle left"></div><div class="stage3-handle right"></div></div></div><div class="stage3-drop ingredient" id="dropIngredient">${catchVisualHtml()}</div><div class="stage3-drop bowl" id="dropBowl"><div class="stage3-mini-bowl"><img src="assets/stage2/bowl.png" alt="ボウル"><div class="stage3-mini-fill" style="background:${state.liquid?.color||'#fff0ce'}"></div></div></div><div class="mirrorball" id="mirrorball"><div class="mirror-chain"></div><div class="mirror-core"></div><div class="mirror-glow"></div></div><div class="dj-beams" id="djBeams"></div><canvas id="stage3DishCanvas" class="stage3-dish-canvas" width="760" height="760" aria-label="完成料理プレビュー"></canvas><div class="stage3-overlay" id="stage3Overlay"></div><div class="focus-burst" id="focusBurst"><div class="focus-lines"></div><b>完成！！</b></div><div class="roulette-wrap" id="rouletteWrap"><div class="roulette-title">◯げるルーレット</div><div class="word-slot" id="word">揚げる</div><button class="stop-btn roulette-stop" id="stop">ここだ！</button></div></div><div class="stage3-caption" id="stage3Caption"><strong>素材投入！</strong><small>まずは鍋に放り込もう</small></div></section>`;
     updateCook('最終工程スタート！',`${state.catch?.name||'食材なし'} と ${state.liquid?.name||'液体なし'} を投入！`,'🍲');
     beginStage3Flow();
   }
@@ -452,6 +452,30 @@
     return img;
   }
 
+  async function deployMirrorBall(){
+    const ball=screen.querySelector('#mirrorball');
+    const beams=screen.querySelector('#djBeams');
+    if(!ball || !beams) return;
+    ball.classList.add('show');
+    await ball.animate([
+      {top:'-24%',opacity:0,transform:'translateX(-50%) scale(.7)'},
+      {top:'14%',opacity:1,transform:'translateX(-50%) scale(1)'}
+    ],{duration:760,easing:'cubic-bezier(.22,.8,.25,1)',fill:'forwards'}).finished.catch(()=>{});
+    ball.classList.add('active');
+    beams.classList.add('active');
+    const final=screen.querySelector('#final');
+    if(final) final.classList.add('dj-mode');
+  }
+
+  function clearDJMode(){
+    const final=screen.querySelector('#final');
+    const ball=screen.querySelector('#mirrorball');
+    const beams=screen.querySelector('#djBeams');
+    if(final) final.classList.remove('dj-mode');
+    if(ball) ball.classList.remove('active');
+    if(beams) beams.classList.remove('active');
+  }
+
   function runTrackSkill(v){
     return new Promise(resolve=>{
       const final=screen.querySelector('#final');
@@ -508,22 +532,41 @@
     return new Promise(resolve=>{
       const final=screen.querySelector('#final');
       const panel=document.createElement('div'); panel.className='dj-qte-panel';
-      panel.innerHTML=`<div class="dj-qte-title">フロアをアげろ！</div><div class="dj-qte-time">残り <b id="djTime">4.5</b> 秒</div><div class="dj-qte-count">ノリ <b id="djTapCount">0</b></div><button class="stop-btn dj-hit" id="djTap">連打！</button>`;
+      panel.innerHTML=`<div class="dj-qte-title">フロアをアげろ！</div><div class="dj-qte-sub">大きなボタンを連打して、盛り上がりゲージを満タンにしよう！</div><div class="dj-hype-wrap"><div class="dj-hype-label">盛り上がり</div><div class="dj-hype-bar"><div class="dj-hype-fill" id="djFill"></div><div class="dj-hype-spark"></div></div></div><div class="dj-status" id="djStatus">まだまだこれから！</div><button class="stop-btn dj-hit" id="djTap">TAP! TAP! TAP!</button><div class="dj-crowd" id="djCrowd"><span>🦀</span><span>✨</span><span>🎶</span></div>`;
       final.appendChild(panel);
-      let taps=0, time=4.5, last=performance.now();
-      const btn=panel.querySelector('#djTap'), timeEl=panel.querySelector('#djTime'), countEl=panel.querySelector('#djTapCount');
-      btn.onclick=()=>{ taps++; countEl.textContent=taps; btn.textContent=taps>24?'もっとアげる！':'連打！'; if(taps%6===0) burstFx(final, final.clientWidth/2, final.clientHeight*.34, 'YEAH!', 'good'); };
-      setStage3Caption('グラサン着地、DJ化！','連打してフロアを盛り上げろ');
+      const btn=panel.querySelector('#djTap'), fill=panel.querySelector('#djFill'), status=panel.querySelector('#djStatus'), crowd=panel.querySelector('#djCrowd');
+      const goal=30;
+      let taps=0, last=performance.now(), time=4.8;
+      const update=()=>{
+        const ratio=clamp(taps/goal,0,1);
+        fill.style.width=(ratio*100)+'%';
+        panel.classList.toggle('dj-hot', ratio>.72);
+        if(ratio>=1) status.textContent='フロア沸騰寸前！';
+        else if(ratio>.72) status.textContent='かなりアがってる！';
+        else if(ratio>.42) status.textContent='いい感じにノってきた！';
+        else if(ratio>.18) status.textContent='その調子！';
+        else status.textContent='まだまだこれから！';
+      };
+      btn.onclick=()=>{
+        taps++;
+        update();
+        btn.classList.remove('hit'); void btn.offsetWidth; btn.classList.add('hit');
+        crowd.classList.remove('pulse'); void crowd.offsetWidth; crowd.classList.add('pulse');
+        if(taps%5===0) burstFx(final, final.clientWidth/2, final.clientHeight*.30, taps>=goal?'MAX!':'YEAH!', 'good');
+      };
+      setStage3Caption('DJタイム突入！','大きなボタンを連打して会場をアげよう');
+      update();
       function loop(now){
-        const dt=(now-last)/1000; last=now; time-=dt; timeEl.textContent=Math.max(0,time).toFixed(1);
+        const dt=(now-last)/1000; last=now; time-=dt;
         if(time<=0){
-          state.finishScore=clamp(taps*9,25,100);
-          state.finishLabel='フロア沸騰';
-          state.art+=250+taps*20;
+          const ratio=clamp(taps/goal,0,1);
+          state.finishScore=Math.round(45 + ratio*55);
+          state.finishLabel=ratio>=.95?'フロア沸騰':ratio>=.68?'大盛況':ratio>=.4?'いい感じ':'ウォームアップ中';
+          state.art+=220+Math.round(ratio*420);
           state.special='dj';
           panel.remove();
           renderStage3Dish(canvas,{verb:state.verb,special:'dj',finishScore:state.finishScore,finishLabel:state.finishLabel});
-          return resolve({taps});
+          return resolve({taps,ratio});
         }
         raf=requestAnimationFrame(loop);
       }
@@ -580,11 +623,14 @@
       const g=await dropAccessory('glasses');
       await wait(120);
       const h=await dropAccessory('headphones');
-      await wait(180);
+      await wait(120);
+      await deployMirrorBall();
+      await wait(160);
       state.special='dj';
       if(g) g.remove(); if(h) h.remove();
       await renderStage3Dish(canvas,{verb:state.verb,special:'dj',finishScore:82,finishLabel:'フロア準備OK'});
       await runDJSkill(canvas);
+      clearDJMode();
       await showFocusThenResult('アがった！！');
     }
   }

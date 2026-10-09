@@ -248,3 +248,28 @@ button{font:inherit}
   .stage3-dish-canvas{width:min(88vw,325px);height:min(67vw,248px)}
   .stage3-caption{bottom:6%}
 }
+
+
+/* v0.9.3 — enhanced DJ branch */
+.mirrorball{position:absolute;z-index:12;left:50%;top:-24%;width:88px;height:118px;transform:translateX(-50%);opacity:0;pointer-events:none}
+.mirrorball.show{opacity:1}.mirrorball.active .mirror-core{animation:mirrorSpin 2.8s linear infinite}.mirrorball.active .mirror-glow{opacity:.95}.mirror-chain{position:absolute;left:50%;top:0;width:4px;height:38px;transform:translateX(-50%);background:linear-gradient(#e9eef6,#7f8796);border-radius:99px}.mirror-core{position:absolute;left:50%;top:30px;width:72px;height:72px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffffff 0 10%,#d9e3f0 10% 24%,#92a0b5 25% 45%,#d7e2f2 45% 58%,#7c879c 59% 78%,#d3deef 79% 100%);border:4px solid #211d1a;box-shadow:0 6px 16px rgba(255,255,255,.18)}
+.mirror-glow{position:absolute;left:50%;top:50px;width:160px;height:160px;transform:translateX(-50%);background:radial-gradient(circle,rgba(177,239,255,.38) 0 16%,rgba(247,168,255,.18) 16% 34%,rgba(255,255,255,0) 60%);filter:blur(8px);opacity:0;transition:opacity .35s ease}
+@keyframes mirrorSpin{to{transform:translateX(-50%) rotate(360deg)}}
+.dj-beams{position:absolute;z-index:10;inset:0;pointer-events:none;opacity:0;transition:opacity .35s ease;background:radial-gradient(circle at 50% 16%,rgba(255,255,255,.08),transparent 34%),conic-gradient(from 0deg at 50% 14%,rgba(130,226,255,.18) 0 8deg,transparent 8deg 20deg,rgba(255,166,232,.14) 20deg 28deg,transparent 28deg 40deg,rgba(255,255,190,.14) 40deg 48deg,transparent 48deg 360deg)}
+.dj-beams.active{opacity:.78;animation:djSweep 8s linear infinite}
+.final-stage.dj-mode{background:radial-gradient(circle at 50% 18%,#fffbe2 0 6%,#d8b7ff 7% 18%,#54205d 20% 43%,#1b1530 72%)}
+@keyframes djSweep{to{transform:rotate(360deg)}}
+.dj-qte-panel{position:absolute;z-index:18;left:6%;right:6%;top:63%;transform:translateY(-50%);padding:18px 16px 20px;border:5px solid #211d1a;border-radius:26px;background:rgba(255,255,255,.96);color:#211d1a;box-shadow:0 12px 0 rgba(0,0,0,.28);text-align:center}
+.dj-qte-title{font-size:28px;font-weight:1000;letter-spacing:.03em}
+.dj-qte-sub{margin-top:6px;font-size:12px;font-weight:800;opacity:.72}
+.dj-hype-wrap{margin-top:14px}.dj-hype-label{font-size:13px;font-weight:1000;letter-spacing:.12em;color:#6f3b9d}.dj-hype-bar{position:relative;height:26px;margin-top:8px;border:4px solid #211d1a;border-radius:99px;background:linear-gradient(90deg,#f3eef9,#f8efe7);overflow:hidden}
+.dj-hype-fill{position:absolute;inset:0 auto 0 0;width:0%;background:linear-gradient(90deg,#7f48ea,#ff66b4,#ffd45f);transition:width .08s linear}.dj-hype-spark{position:absolute;top:-20%;bottom:-20%;width:32%;right:-12%;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.6),rgba(255,255,255,0));transform:skewX(-20deg);opacity:.75}
+.dj-status{margin-top:10px;font-size:18px;font-weight:1000;color:#4f297d;min-height:1.4em}
+.dj-hit{position:static;transform:none;left:auto;bottom:auto;width:100%;max-width:none;margin-top:12px;padding:22px 18px;border-radius:24px;font-size:30px;background:linear-gradient(#ff62b9,#863cff);box-shadow:0 8px 0 #211d1a,0 0 0 6px rgba(255,255,255,.22) inset}
+.dj-hit:active{transform:translateY(6px);box-shadow:0 2px 0 #211d1a,0 0 0 6px rgba(255,255,255,.22) inset}
+.dj-hit.hit{animation:djHitPulse .16s ease-out}
+@keyframes djHitPulse{0%{transform:scale(1)}50%{transform:scale(1.03)}100%{transform:scale(1)}}
+.dj-crowd{margin-top:10px;font-size:26px;display:flex;justify-content:center;gap:14px;opacity:.82}.dj-crowd.pulse{animation:crowdPulse .24s ease-out}.dj-crowd span{display:inline-block}
+@keyframes crowdPulse{50%{transform:translateY(-4px) scale(1.08)}}
+.dj-qte-panel.dj-hot{box-shadow:0 12px 0 rgba(0,0,0,.28),0 0 24px rgba(255,130,205,.28)}
+@media (max-width:430px){.mirrorball{width:72px;height:104px}.mirror-core{width:60px;height:60px}.mirror-glow{width:132px;height:132px}.dj-qte-title{font-size:24px}.dj-status{font-size:16px}.dj-hit{font-size:26px;padding:20px 14px}}
