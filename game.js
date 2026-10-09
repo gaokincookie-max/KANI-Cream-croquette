@@ -222,8 +222,13 @@
     function loop(now){
       if(!active)return;const dt=Math.min((now-last)/1000,.035);last=now;time-=dt;timerEl.textContent=Math.max(0,time).toFixed(1);
       spawnAcc+=dt;
-      const interval=time<3.5?.21:time<8?.27:.35;
-      if(spawnAcc>=interval){spawnAcc=0;addDrop();if(time<7&&Math.random()<.28)addDrop()}
+      // 前半・中盤のテンポはそのまま。ラスト3.5秒だけ過密になりすぎないよう少し緩和。
+      const interval=time<3.5?.22:time<8?.24:.31;
+      if(spawnAcc>=interval){
+        spawnAcc=0; addDrop();
+        const extraChance=time<3.5?.16:(time<7?.28:0);
+        if(extraChance && Math.random()<extraChance) addDrop();
+      }
       const br=bowl.getBoundingClientRect(), ar=area.getBoundingClientRect();
       const bowlLeft=br.left-ar.left, bowlTop=br.top-ar.top;
       const catchY=bowlTop+2;
@@ -267,12 +272,6 @@
 
   function accessoryOverride(id){
     return (window.KANI_DISH_PROJECT && window.KANI_DISH_PROJECT.overrides && window.KANI_DISH_PROJECT.overrides[id]) || '';
-  }
-  function stage3TemplateSlot(id){
-    const project=window.KANI_DISH_PROJECT || {};
-    const templates=project.templates || [];
-    const preferred=templates.find(t=>t.id==='latest_user_layout_v10') || templates[templates.length-1] || null;
-    return preferred && preferred.slots ? preferred.slots[id] || null : null;
   }
   function stage3PreviewState(overrides={}){
     return {
@@ -358,11 +357,11 @@
     setStage3Caption(`${state.catch?.name||'食材'}投入！`,'上から鍋へダイブ！');
     dropIngredient.classList.add('show');
     await dropIngredient.animate([
-      {transform:'translate(-50%,-210%) rotate(-10deg) scale(.7)',opacity:0},
-      {transform:'translate(-50%,-20%) rotate(5deg) scale(1)',opacity:1,offset:.62},
-      {transform:'translate(-50%,30%) rotate(8deg) scale(.96)',opacity:1,offset:.9},
-      {transform:'translate(-50%,56%) rotate(10deg) scale(.88)',opacity:0,offset:1}
-    ],{duration:900,easing:'ease-in'}).finished.catch(()=>{});
+      {top:'-16%',transform:'translate(-50%,-50%) rotate(-10deg) scale(.7)',opacity:0},
+      {top:'47%',transform:'translate(-50%,-50%) rotate(5deg) scale(1)',opacity:1,offset:.72},
+      {top:'59%',transform:'translate(-50%,-50%) rotate(8deg) scale(.96)',opacity:1,offset:.94},
+      {top:'65%',transform:'translate(-50%,-50%) rotate(10deg) scale(.88)',opacity:0,offset:1}
+    ],{duration:980,easing:'ease-in'}).finished.catch(()=>{});
     dropIngredient.remove();
     shake(pot,'soft');
     pot.classList.add('boiling');
@@ -370,11 +369,11 @@
     setStage3Caption('ボウルごと投入！','ためらいは不要だ！');
     dropBowl.classList.add('show');
     await dropBowl.animate([
-      {transform:'translate(-50%,-220%) rotate(-5deg) scale(.8)',opacity:0},
-      {transform:'translate(-50%,-2%) rotate(3deg) scale(1)',opacity:1,offset:.62},
-      {transform:'translate(-50%,32%) rotate(6deg) scale(.96)',opacity:1,offset:.9},
-      {transform:'translate(-50%,58%) rotate(9deg) scale(.9)',opacity:0,offset:1}
-    ],{duration:980,easing:'ease-in'}).finished.catch(()=>{});
+      {top:'-18%',transform:'translate(-50%,-50%) rotate(-5deg) scale(.8)',opacity:0},
+      {top:'46%',transform:'translate(-50%,-50%) rotate(3deg) scale(1)',opacity:1,offset:.7},
+      {top:'59%',transform:'translate(-50%,-50%) rotate(6deg) scale(.96)',opacity:1,offset:.94},
+      {top:'66%',transform:'translate(-50%,-50%) rotate(9deg) scale(.9)',opacity:0,offset:1}
+    ],{duration:1060,easing:'ease-in'}).finished.catch(()=>{});
     dropBowl.remove();
     shake(pot,'hard');
     pot.classList.add('crazy');
@@ -432,27 +431,24 @@
     const overlay=screen.querySelector('#stage3Overlay');
     const src=accessoryOverride(kind);
     if(!overlay || !src) return null;
-    const slot=stage3TemplateSlot(kind) || {};
     const img=document.createElement('img');
     img.className='fall-asset '+kind;
     img.src=src;
     overlay.appendChild(img);
-    const flip = slot.flipX ? -1 : 1;
-    const endScale = kind==='glasses' ? 1 : 1;
-    const startScale = kind==='glasses' ? .72 : .72;
-    const endRotate = (slot.rotation||0);
-    const startRotate = endRotate - 10;
     const target = kind==='glasses'
       ? {left:'53.6%',top:'44%'}
       : {left:'42.5%',top:'44.5%'};
+    // エディターで保存された左右反転・回転を、装着前の落下素材にもそのまま適用。
+    const tpl=window.KaniGameDish?.preferredTemplate?.();
+    const slot=(tpl?.slots&&tpl.slots[kind])||{};
+    const sx=slot.flipX?-1:1;
+    const rot=Number(slot.rotation||0);
+    const tf=(scale,extraRot=0)=>`translate(-50%,-50%) scale(${sx*scale},${scale}) rotate(${rot+extraRot}deg)`;
     await img.animate([
-      {left:'55%',top:'-18%',transform:`translate(-50%,-50%) scaleX(${flip}) scale(${startScale}) rotate(${startRotate}deg)`,opacity:0},
-      {left:target.left,top:target.top,transform:`translate(-50%,-50%) scaleX(${flip}) scale(${endScale}) rotate(${endRotate}deg)`,opacity:1}
+      {left:'55%',top:'-18%',transform:tf(.72,-10),opacity:0},
+      {left:target.left,top:target.top,transform:tf(1,0),opacity:1}
     ],{duration:620,easing:'cubic-bezier(.22,.8,.25,1)'}).finished.catch(()=>{});
-    img.style.left=target.left;
-    img.style.top=target.top;
-    img.style.opacity='1';
-    img.style.transform=`translate(-50%,-50%) scaleX(${flip}) scale(${endScale}) rotate(${endRotate}deg)`;
+    img.style.left=target.left; img.style.top=target.top; img.style.opacity='1'; img.style.transform=tf(1,0);
     return img;
   }
 
