@@ -531,6 +531,7 @@
   function runDJSkill(canvas){
     return new Promise(resolve=>{
       const final=screen.querySelector('#final');
+      final.classList.add('dj-qte-active');
       const panel=document.createElement('div'); panel.className='dj-qte-panel';
       panel.innerHTML=`<div class="dj-qte-title">フロアをアげろ！</div><div class="dj-qte-sub">大きなボタンを連打して、盛り上がりゲージを満タンにしよう！</div><div class="dj-hype-wrap"><div class="dj-hype-label">盛り上がり</div><div class="dj-hype-bar"><div class="dj-hype-fill" id="djFill"></div><div class="dj-hype-spark"></div></div></div><div class="dj-status" id="djStatus">まだまだこれから！</div><button class="stop-btn dj-hit" id="djTap">TAP! TAP! TAP!</button><div class="dj-crowd" id="djCrowd"><span>🦀</span><span>✨</span><span>🎶</span></div>`;
       final.appendChild(panel);
@@ -565,6 +566,7 @@
           state.art+=220+Math.round(ratio*420);
           state.special='dj';
           panel.remove();
+          final.classList.remove('dj-qte-active');
           renderStage3Dish(canvas,{verb:state.verb,special:'dj',finishScore:state.finishScore,finishLabel:state.finishLabel});
           return resolve({taps,ratio});
         }
@@ -597,7 +599,7 @@
       await wait(120);
       await canvas.animate([
         {left:'54%',top:'47%',transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1},
-        {left:'114%',top:'37%',transform:'translate(-50%,-50%) scale(.95) rotate(5deg)',opacity:1}
+        {left:'-14%',top:'37%',transform:'translate(-50%,-50%) scale(.95) rotate(-5deg)',opacity:1}
       ],{duration:980,easing:'linear'}).finished.catch(()=>{});
       finishGame();
       return;
