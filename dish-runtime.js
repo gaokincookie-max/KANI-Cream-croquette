@@ -83,6 +83,9 @@
       sauce:mapSauce(gameState.liquid?.id),
       main:mapMain(gameState.catch?.id),
       finish:finishMode(gameState),
+      finishScore:Number(gameState.finishScore||0),
+      verbId:gameState.verb?.id||null,
+      finishLabel:gameState.finishLabel||'',
       layout:'standard',
       ...rules
     };

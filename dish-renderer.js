@@ -68,8 +68,41 @@
     return out;
   }
   function drawImageAsset(ctx,images,l){const img=images[l.assetId];if(!img)return;ctx.save();ctx.translate(l.x,l.y);ctx.rotate((l.rotation||0)*Math.PI/180);ctx.scale(l.flipX?-1:1,1);ctx.globalAlpha=l.alpha??1;const w=img.width*l.scale,h=img.height*l.scale;ctx.drawImage(img,-w/2,-h/2,w,h);ctx.restore();}
-  function drawFinishOverlay(ctx,layers,finish){if(!finish||finish==='normal')return;const frame=layers.find(l=>l.role==='cutFrame');if(!frame)return;ctx.save();ctx.translate(frame.x,frame.y);ctx.rotate((frame.rotation||0)*Math.PI/180);ctx.scale(frame.scale,frame.scale);ctx.beginPath();ctx.ellipse(-5,0,205,120,-.10,0,Math.PI*2);ctx.clip();if(finish==='golden'){ctx.fillStyle='rgba(255,180,60,.16)';ctx.fillRect(-260,-180,520,360);}else{ctx.fillStyle=finish==='charcoal'?'rgba(35,14,8,.38)':'rgba(50,20,8,.20)';ctx.fillRect(-260,-180,520,360);}ctx.restore();}
-  function renderDish(ctx,images,state,options={}){ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);if(options.backgroundFill){ctx.fillStyle=options.backgroundFill;ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);}const mask=state.mask||createDefaultMask();const layers=[...(state.layers||[])].filter(l=>l.visible!==false).sort((a,b)=>a.z-b.z);for(const l of layers){const d=()=>drawImageAsset(ctx,images,l);if(l.clip){ctx.save();ctx.translate(mask.x,mask.y);ctx.rotate(mask.rotation||0);ctx.beginPath();ctx.ellipse(0,0,mask.rx,mask.ry,0,0,Math.PI*2);ctx.clip();ctx.translate(-mask.x,-mask.y);d();ctx.restore();}else d();}drawFinishOverlay(ctx,layers,state.recipe?.finish);if(options.showMask){ctx.save();ctx.translate(mask.x,mask.y);ctx.rotate(mask.rotation||0);ctx.strokeStyle='#2563eb';ctx.setLineDash([9,7]);ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,mask.rx,mask.ry,0,0,Math.PI*2);ctx.stroke();ctx.restore();}}
+  function tintStyle(finish,alpha){
+    if(finish==='golden') return `rgba(255,180,60,${alpha})`;
+    return finish==='charcoal' ? `rgba(35,14,8,${alpha})` : `rgba(50,20,8,${alpha})`;
+  }
+  function overlayAlpha(recipe){
+    const finish=recipe?.finish;
+    const score=Number(recipe?.finishScore||0);
+    if(finish==='golden') return recipe?.verbId==='burn' ? .13 : .16;
+    if(finish==='burnt') return Math.max(.10, Math.min(.24, .12 + ((45-score)/45)*.10));
+    if(finish==='charcoal') return Math.max(.24, Math.min(.48, .28 + ((45-score)/45)*.18));
+    return 0;
+  }
+  function drawTintOnLayer(ctx,layer,finish,alpha){
+    if(!layer || !alpha) return;
+    ctx.save();
+    ctx.translate(layer.x,layer.y);
+    ctx.rotate((layer.rotation||0)*Math.PI/180);
+    ctx.scale(layer.scale,layer.scale);
+    ctx.beginPath();
+    if(layer.role==='cutFrame') ctx.ellipse(-5,0,205,120,-.10,0,Math.PI*2);
+    else if(layer.role==='backBody') ctx.ellipse(0,0,158,112,.02,0,Math.PI*2);
+    else { ctx.restore(); return; }
+    ctx.clip();
+    ctx.fillStyle=tintStyle(finish,alpha);
+    ctx.fillRect(-260,-180,520,360);
+    ctx.restore();
+  }
+  function drawFinishOverlay(ctx,layers,recipe){
+    const finish=recipe?.finish;
+    if(!finish||finish==='normal')return;
+    const alpha=overlayAlpha(recipe);
+    drawTintOnLayer(ctx,layers.find(l=>l.role==='backBody'),finish,alpha*(finish==='golden'?.9:1));
+    drawTintOnLayer(ctx,layers.find(l=>l.role==='cutFrame'),finish,alpha);
+  }
+  function renderDish(ctx,images,state,options={}){ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);if(options.backgroundFill){ctx.fillStyle=options.backgroundFill;ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);}const mask=state.mask||createDefaultMask();const layers=[...(state.layers||[])].filter(l=>l.visible!==false).sort((a,b)=>a.z-b.z);for(const l of layers){const d=()=>drawImageAsset(ctx,images,l);if(l.clip){ctx.save();ctx.translate(mask.x,mask.y);ctx.rotate(mask.rotation||0);ctx.beginPath();ctx.ellipse(0,0,mask.rx,mask.ry,0,0,Math.PI*2);ctx.clip();ctx.translate(-mask.x,-mask.y);d();ctx.restore();}else d();}drawFinishOverlay(ctx,layers,state.recipe||{});if(options.showMask){ctx.save();ctx.translate(mask.x,mask.y);ctx.rotate(mask.rotation||0);ctx.strokeStyle='#2563eb';ctx.setLineDash([9,7]);ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,mask.rx,mask.ry,0,0,Math.PI*2);ctx.stroke();ctx.restore();}}
   async function loadDefaultImages(loader){const o={};for(const d of Object.values(assetMap))o[d.id]=await loader(d.src);return o;}
   function makeThumbCanvas(img,w=100,h=68){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');const r=Math.min((w-8)/img.width,(h-8)/img.height);const dw=img.width*r,dh=img.height*r;x.drawImage(img,(w-dw)/2,(h-dh)/2,dw,dh);return c;}
   global.KaniDishRenderer={defs,assetMap,defaultRecipe,defaultMask,defaultSlots,createDefaultMask,createDefaultSlots,normalizeRecipe,buildRecipeLayers,renderDish,loadDefaultImages,makeThumbCanvas};
