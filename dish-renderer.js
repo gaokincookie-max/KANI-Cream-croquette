@@ -68,41 +68,33 @@
     return out;
   }
   function drawImageAsset(ctx,images,l){const img=images[l.assetId];if(!img)return;ctx.save();ctx.translate(l.x,l.y);ctx.rotate((l.rotation||0)*Math.PI/180);ctx.scale(l.flipX?-1:1,1);ctx.globalAlpha=l.alpha??1;const w=img.width*l.scale,h=img.height*l.scale;ctx.drawImage(img,-w/2,-h/2,w,h);ctx.restore();}
-  function tintStyle(finish,alpha){
-    if(finish==='golden') return `rgba(255,180,60,${alpha})`;
-    return finish==='charcoal' ? `rgba(35,14,8,${alpha})` : `rgba(50,20,8,${alpha})`;
+  // Create a color-treated image from the active source asset (including project overrides).
+  // This keeps the real in-project silhouette and cutout alignment exactly the same across finish modes.
+  const finishCache=new WeakMap();
+  function finishedImage(source,mode){
+    if(!source||mode==='normal')return source;
+    let cache=finishCache.get(source);
+    if(!cache){cache={};finishCache.set(source,cache);}
+    if(cache[mode])return cache[mode];
+    const cv=document.createElement('canvas');cv.width=source.naturalWidth||source.width;cv.height=source.naturalHeight||source.height;
+    const x=cv.getContext('2d',{willReadFrequently:true});x.drawImage(source,0,0);
+    const img=x.getImageData(0,0,cv.width,cv.height),d=img.data;
+    for(let i=0;i<d.length;i+=4){
+      if(!d[i+3])continue;
+      const r=d[i],g=d[i+1],b=d[i+2];
+      if(mode==='charcoal'){
+        const pale=r>165 && g>108 && (r-g)<90 && (g-b)<92;
+        if(pale){d[i]=Math.round(r*.91);d[i+1]=Math.round(g*.86);d[i+2]=Math.round(b*.79);}
+        else {const lum=.25*r+.64*g+.11*b;d[i]=Math.max(20,Math.min(130,Math.round(lum*.43+22)));d[i+1]=Math.max(11,Math.min(83,Math.round(lum*.24+10)));d[i+2]=Math.max(9,Math.min(64,Math.round(lum*.20+9)));}
+      }else if(mode==='golden'){
+        d[i]=Math.min(255,Math.round(r*1.04+9));
+        d[i+1]=Math.min(255,Math.round(g*1.13+9));
+        d[i+2]=Math.min(255,Math.round(b*.89+4));
+      }
+    }
+    x.putImageData(img,0,0);cache[mode]=cv;return cv;
   }
-  function overlayAlpha(recipe){
-    const finish=recipe?.finish;
-    const score=Number(recipe?.finishScore||0);
-    if(finish==='golden') return recipe?.verbId==='burn' ? .13 : .16;
-    if(finish==='burnt') return Math.max(.10, Math.min(.24, .12 + ((45-score)/45)*.10));
-    if(finish==='charcoal') return Math.max(.24, Math.min(.48, .28 + ((45-score)/45)*.18));
-    return 0;
-  }
-  function drawTintOnLayer(ctx,layer,finish,alpha){
-    if(!layer || !alpha) return;
-    ctx.save();
-    ctx.translate(layer.x,layer.y);
-    ctx.rotate((layer.rotation||0)*Math.PI/180);
-    ctx.scale(layer.scale,layer.scale);
-    ctx.beginPath();
-    if(layer.role==='cutFrame') ctx.ellipse(-5,0,205,120,-.10,0,Math.PI*2);
-    else if(layer.role==='backBody') ctx.ellipse(0,0,158,112,.02,0,Math.PI*2);
-    else { ctx.restore(); return; }
-    ctx.clip();
-    ctx.fillStyle=tintStyle(finish,alpha);
-    ctx.fillRect(-260,-180,520,360);
-    ctx.restore();
-  }
-  function drawFinishOverlay(ctx,layers,recipe){
-    const finish=recipe?.finish;
-    if(!finish||finish==='normal')return;
-    const alpha=overlayAlpha(recipe);
-    drawTintOnLayer(ctx,layers.find(l=>l.role==='backBody'),finish,alpha*(finish==='golden'?.9:1));
-    drawTintOnLayer(ctx,layers.find(l=>l.role==='cutFrame'),finish,alpha);
-  }
-  function renderDish(ctx,images,state,options={}){ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);if(options.backgroundFill){ctx.fillStyle=options.backgroundFill;ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);}const mask=state.mask||createDefaultMask();const layers=[...(state.layers||[])].filter(l=>l.visible!==false).sort((a,b)=>a.z-b.z);for(const l of layers){const d=()=>drawImageAsset(ctx,images,l);if(l.clip){ctx.save();ctx.translate(mask.x,mask.y);ctx.rotate(mask.rotation||0);ctx.beginPath();ctx.ellipse(0,0,mask.rx,mask.ry,0,0,Math.PI*2);ctx.clip();ctx.translate(-mask.x,-mask.y);d();ctx.restore();}else d();}drawFinishOverlay(ctx,layers,state.recipe||{});if(options.showMask){ctx.save();ctx.translate(mask.x,mask.y);ctx.rotate(mask.rotation||0);ctx.strokeStyle='#2563eb';ctx.setLineDash([9,7]);ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,mask.rx,mask.ry,0,0,Math.PI*2);ctx.stroke();ctx.restore();}}
+  function renderDish(ctx,images,state,options={}){ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);if(options.backgroundFill){ctx.fillStyle=options.backgroundFill;ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);}const mask=state.mask||createDefaultMask();const finish=state.recipe?.finish==='burnt'?'charcoal':state.recipe?.finish;const layers=[...(state.layers||[])].filter(l=>l.visible!==false).sort((a,b)=>a.z-b.z);for(const l of layers){const active=images[l.assetId];const colorize=finish&&finish!=='normal'&&(l.role==='backBody'||l.role==='cutFrame')&&(l.assetId==='whole'||l.assetId==='cutFrame');const source=colorize?finishedImage(active,finish):active;const d=()=>drawImageAsset(ctx,{[l.assetId]:source},l);if(l.clip){ctx.save();ctx.translate(mask.x,mask.y);ctx.rotate(mask.rotation||0);ctx.beginPath();ctx.ellipse(0,0,mask.rx,mask.ry,0,0,Math.PI*2);ctx.clip();ctx.translate(-mask.x,-mask.y);d();ctx.restore();}else d();}if(options.showMask){ctx.save();ctx.translate(mask.x,mask.y);ctx.rotate(mask.rotation||0);ctx.strokeStyle='#2563eb';ctx.setLineDash([9,7]);ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,mask.rx,mask.ry,0,0,Math.PI*2);ctx.stroke();ctx.restore();}}
   async function loadDefaultImages(loader){const o={};for(const d of Object.values(assetMap))o[d.id]=await loader(d.src);return o;}
   function makeThumbCanvas(img,w=100,h=68){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');const r=Math.min((w-8)/img.width,(h-8)/img.height);const dw=img.width*r,dh=img.height*r;x.drawImage(img,(w-dw)/2,(h-dh)/2,dw,dh);return c;}
   global.KaniDishRenderer={defs,assetMap,defaultRecipe,defaultMask,defaultSlots,createDefaultMask,createDefaultSlots,normalizeRecipe,buildRecipeLayers,renderDish,loadDefaultImages,makeThumbCanvas};

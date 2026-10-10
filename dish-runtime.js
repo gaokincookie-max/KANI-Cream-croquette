@@ -51,11 +51,7 @@
   }
   function finishMode(gameState){
     const v=gameState.verb?.id;
-    if(v==='burn'){
-      if(gameState.finishLabel==='奇跡の火入れ') return 'golden';
-      if(gameState.finishLabel==='香ばしい焦げ') return 'burnt';
-      return 'charcoal';
-    }
+    if(v==='burn') return gameState.finishLabel==='奇跡の火入れ' ? 'golden' : 'charcoal';
     if(v==='fry' && gameState.finishScore>=92) return 'golden';
     return 'normal';
   }
@@ -83,9 +79,6 @@
       sauce:mapSauce(gameState.liquid?.id),
       main:mapMain(gameState.catch?.id),
       finish:finishMode(gameState),
-      finishScore:Number(gameState.finishScore||0),
-      verbId:gameState.verb?.id||null,
-      finishLabel:gameState.finishLabel||'',
       layout:'standard',
       ...rules
     };

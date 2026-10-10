@@ -514,7 +514,7 @@
         if(done) return;
         const dt=(now-last)/1000; last=now; pos+=dir*speed*dt;
         if(v.id==='burn'){
-          if(pos>1.12){ done=true; state.art+=20; needle.style.left='110%'; return finish(0,'真っ黒焦げ'); }
+          if(pos>1.12){ done=true; state.art+=20; needle.style.left='110%'; return finish(0,'黒焦げ'); }
         }else{
           if(pos>=1){ pos=1; dir=-1; } else if(pos<=0){ pos=0; dir=1; }
         }
@@ -528,7 +528,7 @@
         let score=Math.round(clamp(100-dist*230,0,100));
         let label='';
         if(v.id==='burn'){
-          if(dist>.085){ score=Math.round(clamp(45-dist*160,0,45)); label=score>25?'香ばしい焦げ':'真っ黒焦げ'; }
+          if(dist>.085){ score=Math.round(clamp(45-dist*160,0,45)); label='黒焦げ'; }
           else label='奇跡の火入れ';
         }else if(v.id==='fry'){
           label=score>=95?'究極カリカリ':score>=75?'サクサク':score>=45?'普通':'しなしな';
@@ -753,7 +753,7 @@
       verbId:recipeFinishId(state)==='miracle_burn'?'burn':(recipeFinishId(state)==='fry'?'fry':state.verb?.id||null),
       verbLabel:recipeFinishId(state)==='miracle_burn'?'焦げる':(recipeFinishId(state)==='fry'?'揚げる':state.verb?.label||''),
       finishScore:recipeFinishId(state)==='miracle_burn'?100:(state.finishScore||0),
-      finishLabel:recipeFinishId(state)==='miracle_burn'?'奇跡の火入れ':(recipeFinishId(state)==='fry'&&state.verb?.id==='burn'?'揚がった':state.finishLabel||'—'),
+      finishLabel:recipeFinishId(state)==='miracle_burn'?'奇跡の火入れ':(recipeFinishId(state)==='fry'&&state.verb?.id==='burn'?'黒焦げ':state.finishLabel||'—'),
       freshness:state.freshness||0,
       amountScore:state.amountScore||0,
       art:state.art||0
