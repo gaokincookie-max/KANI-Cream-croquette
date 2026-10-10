@@ -7,7 +7,7 @@
 
   const storageKey = 'kaniCreamKorokkeProtoBook';
   const settingsKey = 'kaniCreamKorokkeProtoSettings';
-  const TOTAL_RECIPES = 500;
+  const TOTAL_RECIPES = 600;
   const recipeComments = window.KANI_RECIPE_COMMENTS || {};
   let book = JSON.parse(localStorage.getItem(storageKey) || '[]');
   let settings = Object.assign({sfx:70, reducedMotion:false}, JSON.parse(localStorage.getItem(settingsKey) || '{}'));
@@ -677,7 +677,7 @@
   }
   function recipeFinishId(gs=state){
     const v=gs.verb?.id;
-    if(v==='burn') return gs.finishLabel==='奇跡の火入れ' ? 'miracle_burn' : 'fry';
+    if(v==='burn') return gs.finishLabel==='奇跡の火入れ' ? 'miracle_burn' : 'burn';
     if(v==='age') return 'age';
     if(v==='escape') return 'escape';
     if(v==='throw') return 'throw';
@@ -698,6 +698,9 @@
   function recipeBookComment(gs=state){
     return recipeDefFor(gs)?.comment || resultComment(calcCompletion(),dishName());
   }
+  const RECIPE_IDS=Object.keys(recipeComments);
+  const RECIPE_NUMBER=new Map(RECIPE_IDS.map((key,i)=>[key,i+1]));
+  let bookSort='discovery';
   function migrateBook(){
     if(!Array.isArray(book)){ book=[]; return; }
     const merged=new Map();
@@ -708,12 +711,17 @@
         const oldState=gameStateFromBookEntry(x);
         key=recipeKeyFor(oldState);
       }
+      // Old saves shared the same fry ID with burnt results. Separate when metadata proves burn.
+      if(key?.endsWith('__fry') && (x.verbId==='burn' || x.verbLabel==='焦げる' || x.finishLabel==='黒焦げ' || x.finishLabel==='真っ黒焦げ' || x.finishLabel==='香ばしい焦げ')){
+        key=key.replace(/__fry$/,'__burn');
+      }
       if(!key || !recipeComments[key]) continue;
       const prev=merged.get(key);
       const score=Number(x.bestScore ?? x.totalScore ?? 0);
       const normalized={
         ...x,
         recipeKey:key,
+        ...(key.endsWith('__burn')?{verbId:'burn',verbLabel:'焦げる',finishLabel:'黒焦げ'}:{}),
         name:recipeComments[key]?.name || x.name || key,
         comment:recipeComments[key]?.comment || x.comment || '',
         bestScore:score,
@@ -750,10 +758,10 @@
       liquid:state.liquid?.name,
       catchId:state.catch?.id||null,
       liquidId:state.liquid?.id||null,
-      verbId:recipeFinishId(state)==='miracle_burn'?'burn':(recipeFinishId(state)==='fry'?'fry':state.verb?.id||null),
-      verbLabel:recipeFinishId(state)==='miracle_burn'?'焦げる':(recipeFinishId(state)==='fry'?'揚げる':state.verb?.label||''),
-      finishScore:recipeFinishId(state)==='miracle_burn'?100:(state.finishScore||0),
-      finishLabel:recipeFinishId(state)==='miracle_burn'?'奇跡の火入れ':(recipeFinishId(state)==='fry'&&state.verb?.id==='burn'?'黒焦げ':state.finishLabel||'—'),
+      verbId:state.verb?.id||null,
+      verbLabel:state.verb?.label||'',
+      finishScore:state.finishScore||0,
+      finishLabel:state.finishLabel||'—',
       freshness:state.freshness||0,
       amountScore:state.amountScore||0,
       art:state.art||0
@@ -836,10 +844,13 @@
 
   function showBook(){
     clearAsync();setStage('図鑑');
-    const sortedBook=[...book].sort((a,b)=>Number(b.bestScore||0)-Number(a.bestScore||0));
-    const items=sortedBook.map(x=>`<button class="book-item" data-recipe-key="${escapeHtml(x.recipeKey)}"><div class="book-thumb"><canvas data-book-canvas="${escapeHtml(x.recipeKey)}" width="760" height="760" aria-label="${escapeHtml(x.name)}"></canvas></div><b>${escapeHtml(x.name)}</b><small>最高 ${Number(x.bestScore||0).toLocaleString()} pt</small></button>`).join('');
-    screen.innerHTML=`<section class="book-screen"><div class="book-card"><div class="book-head"><div><h2>レシピ図鑑</h2><p>発見した料理だけがここに残る。</p></div><div class="book-progress"><b>${book.length}</b><span>/ ${TOTAL_RECIPES}</span><small>発見</small></div></div>${items?`<div class="book-grid">${items}</div>`:'<div class="empty-note">まだ一皿も登録されていません。<br>まずは何か作ってみよう。</div>'}<button class="back-btn">戻る</button></div></section>`;
-    screen.querySelector('.back-btn').onclick=showMenu;
+    const sortedBook=[...book];
+    if(bookSort==='number') sortedBook.sort((a,b)=>(RECIPE_NUMBER.get(a.recipeKey)||9999)-(RECIPE_NUMBER.get(b.recipeKey)||9999));
+    // book is unshifted on discovery, so the array is newest-first.
+    const items=sortedBook.map(x=>`<button class="book-item" data-recipe-key="${escapeHtml(x.recipeKey)}"><div class="book-thumb"><canvas data-book-canvas="${escapeHtml(x.recipeKey)}" width="760" height="760" aria-label="${escapeHtml(x.name)}"></canvas></div><small class="book-number">No.${String(RECIPE_NUMBER.get(x.recipeKey)||0).padStart(3,'0')}</small><b>${escapeHtml(x.name)}</b><small>最高 ${Number(x.bestScore||0).toLocaleString()} pt</small></button>`).join('');
+    screen.innerHTML=`<section class="book-screen"><div class="book-card"><button class="book-top-back" type="button">← メニューへ戻る</button><div class="book-head"><div><h2>レシピ図鑑</h2><p>発見した料理だけがここに残る。</p></div><div class="book-progress"><b>${book.length}</b><span>/ ${TOTAL_RECIPES}</span><small>発見</small></div></div><div class="book-tools"><label for="bookSort">並び順</label><select id="bookSort"><option value="discovery" ${bookSort==='discovery'?'selected':''}>発見順（新しい順）</option><option value="number" ${bookSort==='number'?'selected':''}>図鑑番号順</option></select></div>${items?`<div class="book-grid">${items}</div>`:'<div class="empty-note">まだ一皿も登録されていません。まずは何か作ってみよう。</div>'}</div></section>`;
+    screen.querySelector('.book-top-back').onclick=showMenu;
+    screen.querySelector('#bookSort').onchange=e=>{bookSort=e.target.value;showBook();};
     screen.querySelectorAll('[data-recipe-key]').forEach(btn=>btn.onclick=()=>showBookDetail(btn.dataset.recipeKey));
     renderBookDishCards();
   }
@@ -848,7 +859,7 @@
     const entry=book.find(x=>x.recipeKey===key);
     if(!entry) return showBook();
     clearAsync();setStage('図鑑 / 詳細');
-    screen.innerHTML=`<section class="book-screen"><div class="book-card detail-card"><button class="detail-back">← 図鑑へ戻る</button><div class="detail-dish"><canvas id="bookDetailCanvas" width="760" height="760" aria-label="${escapeHtml(entry.name)}"></canvas></div><h2 class="detail-name">${escapeHtml(entry.name)}</h2><div class="detail-best"><span>最高得点</span><b>${Number(entry.bestScore||0).toLocaleString()}</b><em>pt</em></div><div class="detail-stats"><div><span>材料</span><b>${escapeHtml(entry.catch||'—')} × ${escapeHtml(entry.liquid||'—')}</b></div><div><span>初回発見</span><b>${escapeHtml(entry.firstDate||'—')}</b></div><div><span>作った回数</span><b>${Number(entry.cookCount||1)}回</b></div></div><div class="book-comment"><small>図鑑コメント</small><p>${escapeHtml(entry.comment||recipeComments[key]?.comment||'')}</p></div></div></section>`;
+    screen.innerHTML=`<section class="book-screen"><div class="book-card detail-card"><button class="detail-back">← 図鑑へ戻る</button><div class="detail-dish"><canvas id="bookDetailCanvas" width="760" height="760" aria-label="${escapeHtml(entry.name)}"></canvas></div><small class="detail-number">No.${String(RECIPE_NUMBER.get(key)||0).padStart(3,'0')}</small><h2 class="detail-name">${escapeHtml(entry.name)}</h2><div class="detail-best"><span>最高得点</span><b>${Number(entry.bestScore||0).toLocaleString()}</b><em>pt</em></div><div class="detail-stats"><div><span>材料</span><b>${escapeHtml(entry.catch||'—')} × ${escapeHtml(entry.liquid||'—')}</b></div><div><span>初回発見</span><b>${escapeHtml(entry.firstDate||'—')}</b></div><div><span>作った回数</span><b>${Number(entry.cookCount||1)}回</b></div></div><div class="book-comment"><small>図鑑コメント</small><p>${escapeHtml(entry.comment||recipeComments[key]?.comment||'')}</p></div></div></section>`;
     screen.querySelector('.detail-back').onclick=showBook;
     const canvas=screen.querySelector('#bookDetailCanvas');
     if(window.KaniGameDish && canvas) window.KaniGameDish.render(canvas,gameStateFromBookEntry(entry)).catch(()=>{});
