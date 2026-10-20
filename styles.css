@@ -381,3 +381,9 @@ button{font:inherit}
 .book-tools select{min-width:150px;max-width:72%;font:inherit;border:2px solid #211d1a;border-radius:9px;padding:8px;background:#fff}
 .book-number{font-weight:1000;color:#98632b;opacity:1!important}
 .detail-number{display:block;text-align:center;font-weight:1000;color:#98632b;margin-bottom:5px}
+
+/* Recipe book: full story leads, judge notes remain available beneath it. */
+.book-comment p{font-weight:650;line-height:1.85;overflow-wrap:anywhere}
+.book-judge-comment{margin-top:11px;padding:13px 14px;border:2px solid #d6c8b3;border-radius:15px;background:#fff9e9;color:#30271e}
+.book-judge-comment small{font-size:11px;font-weight:1000;letter-spacing:.05em;color:#876446}
+.book-judge-comment p{font-size:12px;line-height:1.7;margin:6px 0 0;overflow-wrap:anywhere}

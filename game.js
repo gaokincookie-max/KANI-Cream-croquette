@@ -9,6 +9,16 @@
   const settingsKey = 'kaniCreamKorokkeProtoSettings';
   const TOTAL_RECIPES = 600;
   const recipeComments = window.KANI_RECIPE_COMMENTS || {};
+  // Detect a missing or cached comment bundle instead of silently using generic text.
+  if (Object.keys(recipeComments).length !== 600) {
+    console.error('[KANI] レシピコメントの読み込みに失敗しました。実際の件数:', Object.keys(recipeComments).length);
+    window.addEventListener('DOMContentLoaded', () => {
+      const notice = document.createElement('div');
+      notice.style.cssText = 'position:fixed;z-index:99999;bottom:12px;left:12px;right:12px;padding:12px 16px;background:#7c1e1e;color:#fff;font-weight:bold;border-radius:8px;box-shadow:0 3px 12px #0005';
+      notice.textContent = 'レシピコメントの読み込みに失敗しました。最新版ZIPをすべて展開し、index.html から起動してください。';
+      document.body.appendChild(notice);
+    });
+  }
   let book = JSON.parse(localStorage.getItem(storageKey) || '[]');
   let settings = Object.assign({sfx:70, reducedMotion:false}, JSON.parse(localStorage.getItem(settingsKey) || '{}'));
 
@@ -661,13 +671,13 @@
   }
   function completionMultiplier(c){return +(0.45+(c/100)*1.25).toFixed(2)}
   function dishName(){
-    const a=state.catch?.name||'食材なし',b=state.liquid?.name||'液体なし',v=state.verb?.id;
+    const a=state.catch?.name||'食材なし', b=state.liquid?.name||'液体なし', v=state.verb?.id;
     if(state.special==='dj')return `${a}${b}DJ`;
     if(v==='escape')return `逃走した${a}${b}`;
     if(v==='throw')return `投げられた${a}${b}`;
-    if(v==='burn')return `${a}${b}${state.finishLabel}`;
-    if(a==='カニ' && b==='クリーム' && v==='fry' && state.finishScore>=92)return 'カニクリームコロッケ';
-    return `${a}${b}${v==='fry'?'揚げ':'料理'}`;
+    if(v==='burn')return `${state.finishLabel==='奇跡の火入れ'?'奇跡の':'焦げ'}${a}${b}コロッケ`;
+    if(v==='fry')return `${a}${b}コロッケ`;
+    return `${a}${b}料理`;
   }
   function dishIcon(){if(state.special==='dj')return '😎🎛️';if(state.special==='escaped')return '🟤💨';if(state.verb?.id==='throw')return '💥🟤';if(state.verb?.id==='burn')return '⚫';return '🟤'}
   function dishArtSrc(){
@@ -789,7 +799,7 @@
     const base=Math.round(ingredientBase*10), total=Math.round(base*mult+state.art*10),name=dishName();
     const reg=registerRecipe(total);
     const cls=state.verb?.id==='burn'?'burnt':state.verb?.id==='throw'?'thrown':state.special==='escaped'?'escaped':'';
-    const comment=resultComment(c,name);
+    const comment=recipeDefFor(state)?.judgeComment || resultComment(c,name);
     const recordBadge=reg.isNew?'NEW RECIPE!':reg.isRecord?'NEW RECORD!':'';
     screen.innerHTML=`<section class="result-screen"><div class="result-card"><div class="result-heading">本日の作品</div><div class="dish-art ${cls}"><canvas id="resultDishCanvas" width="760" height="760" aria-label="${escapeHtml(name)}"></canvas></div><div class="dish-name">『${escapeHtml(name)}』</div><div class="total-score"><span>総合点</span><b>${total.toLocaleString()}</b><em>pt</em>${recordBadge?`<i>${recordBadge}</i>`:''}</div><div class="scores result-breakdown"><div class="score-box"><span>新鮮さ</span><b>${state.freshness}</b></div><div class="score-box"><span>分量</span><b>${state.amountScore}</b></div><div class="score-box"><span>${state.verb?.id==='throw'?'投擲':state.verb?.id==='age'?'盛り上がり':'仕上げ'}</span><b>${state.finishScore}</b></div><div class="score-box"><span>完成度倍率</span><b>×${mult}</b></div><div class="score-box wide"><span>芸術点</span><b>${state.art}</b></div></div><div class="comment">審査員「${escapeHtml(comment)}」</div>${reg.isNew?`<div class="result-discovery">📖 新しいレシピが図鑑に登録された！</div>`:''}<div class="action-row"><button class="again">もう一皿</button><button class="menu">メニュー</button></div></div></section>`;
     const dishCanvas=screen.querySelector('#resultDishCanvas');
@@ -847,7 +857,7 @@
     const sortedBook=[...book];
     if(bookSort==='number') sortedBook.sort((a,b)=>(RECIPE_NUMBER.get(a.recipeKey)||9999)-(RECIPE_NUMBER.get(b.recipeKey)||9999));
     // book is unshifted on discovery, so the array is newest-first.
-    const items=sortedBook.map(x=>`<button class="book-item" data-recipe-key="${escapeHtml(x.recipeKey)}"><div class="book-thumb"><canvas data-book-canvas="${escapeHtml(x.recipeKey)}" width="760" height="760" aria-label="${escapeHtml(x.name)}"></canvas></div><small class="book-number">No.${String(RECIPE_NUMBER.get(x.recipeKey)||0).padStart(3,'0')}</small><b>${escapeHtml(x.name)}</b><small>最高 ${Number(x.bestScore||0).toLocaleString()} pt</small></button>`).join('');
+    const items=sortedBook.map(x=>`<button class="book-item" data-recipe-key="${escapeHtml(x.recipeKey)}"><div class="book-thumb"><canvas data-book-canvas="${escapeHtml(x.recipeKey)}" width="760" height="760" aria-label="${escapeHtml(recipeComments[x.recipeKey]?.name||x.name)}"></canvas></div><small class="book-number">No.${String(RECIPE_NUMBER.get(x.recipeKey)||0).padStart(3,'0')}</small><b>${escapeHtml(recipeComments[x.recipeKey]?.name||x.name)}</b><small>最高 ${Number(x.bestScore||0).toLocaleString()} pt</small></button>`).join('');
     screen.innerHTML=`<section class="book-screen"><div class="book-card"><button class="book-top-back" type="button">← メニューへ戻る</button><div class="book-head"><div><h2>レシピ図鑑</h2><p>発見した料理だけがここに残る。</p></div><div class="book-progress"><b>${book.length}</b><span>/ ${TOTAL_RECIPES}</span><small>発見</small></div></div><div class="book-tools"><label for="bookSort">並び順</label><select id="bookSort"><option value="discovery" ${bookSort==='discovery'?'selected':''}>発見順（新しい順）</option><option value="number" ${bookSort==='number'?'selected':''}>図鑑番号順</option></select></div>${items?`<div class="book-grid">${items}</div>`:'<div class="empty-note">まだ一皿も登録されていません。まずは何か作ってみよう。</div>'}</div></section>`;
     screen.querySelector('.book-top-back').onclick=showMenu;
     screen.querySelector('#bookSort').onchange=e=>{bookSort=e.target.value;showBook();};
@@ -859,7 +869,7 @@
     const entry=book.find(x=>x.recipeKey===key);
     if(!entry) return showBook();
     clearAsync();setStage('図鑑 / 詳細');
-    screen.innerHTML=`<section class="book-screen"><div class="book-card detail-card"><button class="detail-back">← 図鑑へ戻る</button><div class="detail-dish"><canvas id="bookDetailCanvas" width="760" height="760" aria-label="${escapeHtml(entry.name)}"></canvas></div><small class="detail-number">No.${String(RECIPE_NUMBER.get(key)||0).padStart(3,'0')}</small><h2 class="detail-name">${escapeHtml(entry.name)}</h2><div class="detail-best"><span>最高得点</span><b>${Number(entry.bestScore||0).toLocaleString()}</b><em>pt</em></div><div class="detail-stats"><div><span>材料</span><b>${escapeHtml(entry.catch||'—')} × ${escapeHtml(entry.liquid||'—')}</b></div><div><span>初回発見</span><b>${escapeHtml(entry.firstDate||'—')}</b></div><div><span>作った回数</span><b>${Number(entry.cookCount||1)}回</b></div></div><div class="book-comment"><small>図鑑コメント</small><p>${escapeHtml(entry.comment||recipeComments[key]?.comment||'')}</p></div></div></section>`;
+    screen.innerHTML=`<section class="book-screen"><div class="book-card detail-card"><button class="detail-back">← 図鑑へ戻る</button><div class="detail-dish"><canvas id="bookDetailCanvas" width="760" height="760" aria-label="${escapeHtml(recipeComments[key]?.name||entry.name)}"></canvas></div><small class="detail-number">No.${String(RECIPE_NUMBER.get(key)||0).padStart(3,'0')}</small><h2 class="detail-name">${escapeHtml(recipeComments[key]?.name||entry.name)}</h2><div class="detail-best"><span>最高得点</span><b>${Number(entry.bestScore||0).toLocaleString()}</b><em>pt</em></div><div class="detail-stats"><div><span>材料</span><b>${escapeHtml(entry.catch||'—')} × ${escapeHtml(entry.liquid||'—')}</b></div><div><span>初回発見</span><b>${escapeHtml(entry.firstDate||'—')}</b></div><div><span>作った回数</span><b>${Number(entry.cookCount||1)}回</b></div></div><div class="book-comment"><small>図鑑説明</small><p>${escapeHtml(recipeComments[key]?.comment||entry.comment||'')}</p></div><div class="book-judge-comment"><small>審査員のコメント</small><p>${escapeHtml(recipeComments[key]?.judgeComment||'')}</p></div></div></section>`;
     screen.querySelector('.detail-back').onclick=showBook;
     const canvas=screen.querySelector('#bookDetailCanvas');
     if(window.KaniGameDish && canvas) window.KaniGameDish.render(canvas,gameStateFromBookEntry(entry)).catch(()=>{});
