@@ -130,7 +130,7 @@
       note:'岩陰から飛び出した瞬間がチャンス',
       art:`<img src="assets/stage1/crab.png" alt="カニ" class="transition-art-main">`,
       next:()=>startStage1(),
-      delay:1500
+      delay:2300
     });
   }
 
@@ -199,7 +199,7 @@
       if(state.catch)return;
       if(seen>=8){
         state.catch={id:'none',name:'食材なし',icon:'💨',good:false,base:0};state.freshness=0;state.notes.push('8体すべて見送り');
-        toast('食材なし！');return later(()=>showTransition({title:'第2工程',subtitle:'ボウルに材料を集めよう',action:'クリームをボウルに集めろ！',note:'左上のお題と同じ材料を集めて分量100を目指そう',art:`<div class="transition-art-pair"><img src="assets/stage2/cream.png" alt="クリーム" class="transition-art-small"><img src="assets/stage2/bowl.png" alt="ボウル" class="transition-art-bowl"></div>`,next:startStage2,delay:1700}),1100);
+        toast('食材なし！');return later(()=>showTransition({title:'第2工程',subtitle:'ボウルに材料を集めよう',action:'クリームをボウルに集めろ！',note:'左上のお題と同じ材料を集めて分量100を目指そう',art:`<div class="transition-art-pair"><img src="assets/stage2/cream.png" alt="クリーム" class="transition-art-small"><img src="assets/stage2/bowl.png" alt="ボウル" class="transition-art-bowl"></div>`,next:startStage2,delay:2500}),1100);
       }
       phase='waiting'; current=null;
       later(()=>spawn(), r(500,1050));
@@ -247,7 +247,7 @@
           const label=fresh>=95?'神鮮':fresh>=80?'超新鮮':fresh>=60?'新鮮':fresh>=40?'普通':'遅め';
           updateCook(`${current?.item?.name||state.catch.name}を確保！`,`獲得：${state.catch.name} / 新鮮さ ${fresh}` , state.catch.icon);
           toast(`${state.catch.name}！　${label} ${fresh}`);
-          later(()=>showTransition({title:'第2工程',subtitle:'ボウルに材料を集めよう',action:'クリームをボウルに集めろ！',note:'左上のお題と同じ材料を集めて分量100を目指そう',art:`<div class="transition-art-pair"><img src="assets/stage2/cream.png" alt="クリーム" class="transition-art-small"><img src="assets/stage2/bowl.png" alt="ボウル" class="transition-art-bowl"></div>`,next:startStage2,delay:1700}),1250);
+          later(()=>showTransition({title:'第2工程',subtitle:'ボウルに材料を集めよう',action:'クリームをボウルに集めろ！',note:'左上のお題と同じ材料を集めて分量100を目指そう',art:`<div class="transition-art-pair"><img src="assets/stage2/cream.png" alt="クリーム" class="transition-art-small"><img src="assets/stage2/bowl.png" alt="ボウル" class="transition-art-bowl"></div>`,next:startStage2,delay:2500}),1250);
           return;
         }
       }
@@ -373,7 +373,7 @@
       const ratioTxt=d?Math.round(d.ratio*100):0;
       updateCook(`${state.liquid.name}になった！`,`分量 ${Math.round(state.amount)} / 完成度 ${state.amountScore}` ,state.liquid.icon);
       toast(`${state.liquid.name}（${ratioTxt}%）`);
-      later(()=>showTransition({title:'第3工程',subtitle:'最後の調理を決めよう',action:'「揚げる」で止めろ！',note:'ルーレットを止めた結果でコロッケの運命が決まる',art:`<div class="transition-art-stage3"><img src="assets/dish/normal.png" alt="コロッケ" class="transition-art-dish"><div class="transition-word-badge">揚げる</div></div>`,next:startStage3,delay:1900}),1200);
+      later(()=>showTransition({title:'第3工程',subtitle:'最後の調理を決めよう',action:'「揚げる」で止めろ！',note:'ルーレットを止めた結果でコロッケの運命が決まる',art:`<div class="transition-art-stage3"><img src="assets/dish/normal.png" alt="コロッケ" class="transition-art-dish"><div class="transition-word-badge">揚げる</div></div>`,next:startStage3,delay:2700}),1200);
     }
     refresh();raf=requestAnimationFrame(loop);
   }

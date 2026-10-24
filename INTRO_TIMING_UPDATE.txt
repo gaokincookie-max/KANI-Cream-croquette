@@ -1,0 +1,5 @@
+Stage introduction duration adjustment
+Stage 1: 1.5s -> 2.3s
+Stage 2: 1.7s -> 2.5s
+Stage 3: 1.9s -> 2.7s
+All artwork, UI text and gameplay rules unchanged.
