@@ -17,12 +17,18 @@
   async function init(){
     if(readyPromise) return readyPromise;
     readyPromise=(async()=>{
-      images=await R.loadDefaultImages(loadImage);
+      // Build a complete image set before publishing it to render callers.
+      const loaded=await R.loadDefaultImages(loadImage);
       for(const [id,url] of Object.entries(project.overrides||{})){
-        if(url) images[id]=await loadImage(url);
+        if(url) loaded[id]=await loadImage(url);
       }
+      images=loaded;
       return true;
-    })();
+    })().catch(err=>{
+      // A transient loading failure must not permanently poison future renders.
+      readyPromise=null;
+      throw err;
+    });
     return readyPromise;
   }
 

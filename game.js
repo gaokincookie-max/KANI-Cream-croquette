@@ -19,12 +19,50 @@
       document.body.appendChild(notice);
     });
   }
-  let book = JSON.parse(localStorage.getItem(storageKey) || '[]');
-  let settings = Object.assign({sfx:70, reducedMotion:false}, JSON.parse(localStorage.getItem(settingsKey) || '{}'));
+  // A damaged or blocked localStorage must never stop the entire game boot sequence.
+  function readStorage(key, fallback){
+    try { const value=localStorage.getItem(key); return value===null ? fallback : JSON.parse(value); }
+    catch(err){ console.warn('[KANI] セーブデータを読み込めません:',key,err); return fallback; }
+  }
+  function writeStorage(key, value){
+    try { localStorage.setItem(key,JSON.stringify(value)); return true; }
+    catch(err){ console.warn('[KANI] セーブデータを保存できません:',key,err); return false; }
+  }
+  let book = readStorage(storageKey, []);
+  let settings = Object.assign({sfx:70, reducedMotion:false}, readStorage(settingsKey, {}) || {});
 
   const state = resetState();
   let timers = [];
   let raf = 0;
+  let stage2VisibilityCleanup = null;
+  let bookRenderCleanup = null;
+  const stageAnimations = new Set();
+  // Every screen change invalidates outstanding stage-three work.
+  let stage3Session = 0;
+  const stage3AbortListeners = new Set();
+  const STAGE3_CANCELLED = Symbol('stage3-cancelled');
+  function stage3Await(task, session){
+    if(session !== stage3Session) return Promise.reject(STAGE3_CANCELLED);
+    return new Promise((resolve,reject)=>{
+      let settled=false;
+      const abort=()=>finish(false,STAGE3_CANCELLED);
+      const finish=(ok,value)=>{
+        if(settled) return;
+        settled=true;
+        stage3AbortListeners.delete(abort);
+        if(session !== stage3Session) reject(STAGE3_CANCELLED);
+        else if(ok) resolve(value); else reject(value);
+      };
+      stage3AbortListeners.add(abort);
+      Promise.resolve(task).then(value=>finish(true,value),err=>finish(false,err));
+    });
+  }
+  function stage3Animation(element,frames,options){
+    return trackStageAnimation(element.animate(frames,options)).finished;
+  }
+  function handleStage3Error(err){
+    if(err !== STAGE3_CANCELLED) console.error('[KANI] 第3工程の演出エラー:',err);
+  }
 
   function resetState(){
     return {
@@ -43,7 +81,23 @@
       special:null
     };
   }
-  function clearAsync(){ timers.forEach(clearTimeout); timers=[]; cancelAnimationFrame(raf); }
+  function clearAsync(){
+    if(stage2VisibilityCleanup){ stage2VisibilityCleanup(); stage2VisibilityCleanup=null; }
+    if(bookRenderCleanup){ bookRenderCleanup(); bookRenderCleanup=null; }
+    stage3Session++;
+    for(const abort of [...stage3AbortListeners]) abort();
+    timers.forEach(clearTimeout); timers=[];
+    cancelAnimationFrame(raf); raf=0;
+    for(const animation of stageAnimations) animation.cancel();
+    stageAnimations.clear();
+  }
+  function trackStageAnimation(animation){
+    stageAnimations.add(animation);
+    const cleanup=()=>stageAnimations.delete(animation);
+    animation.addEventListener('finish',cleanup,{once:true});
+    animation.addEventListener('cancel',cleanup,{once:true});
+    return animation;
+  }
   function later(fn,ms){ const id=setTimeout(fn,ms);timers.push(id);return id; }
   function wait(ms){ return new Promise(resolve=>later(resolve,ms)); }
   function setStage(label){ stageChip.textContent=label; }
@@ -68,7 +122,16 @@
   }
 
   function startGame(){
-    clearAsync(); Object.assign(state, resetState()); showTransition('第1工程','岩陰を見切れ！',()=>startStage1(),900);
+    clearAsync(); Object.assign(state, resetState());
+    showTransition({
+      title:'第1工程',
+      subtitle:'狙う食材を見極めよう',
+      action:'タップでカニを捕まえろ！',
+      note:'岩陰から飛び出した瞬間がチャンス',
+      art:`<img src="assets/stage1/crab.png" alt="カニ" class="transition-art-main">`,
+      next:()=>startStage1(),
+      delay:1500
+    });
   }
 
   function mountHud(){ screen.innerHTML=''; screen.appendChild(clone(hudTpl)); return screen.querySelector('#playArea'); }
@@ -77,9 +140,33 @@
     if(a)a.textContent=line;if(b)b.textContent=ingredient;if(c)c.textContent=icon;
   }
 
-  function showTransition(title,subtitle,next,delay=1500){
-    clearAsync(); setStage('MOVE'); screen.innerHTML=`<section class="transition"><div class="transition-flash"></div><div class="transition-lines"></div><h2>${title}<br><small>${subtitle}</small></h2><div class="transition-next">NEXT</div></section>`;
-    later(next,delay);
+  function showTransition(configOrTitle,subtitle,next,delay=1500){
+    clearAsync();
+    const cfg = typeof configOrTitle === 'object'
+      ? configOrTitle
+      : {title:configOrTitle, subtitle, next, delay};
+    const titleText = cfg.title || '';
+    const subtitleText = cfg.subtitle || '';
+    const actionText = cfg.action || subtitleText || '';
+    const noteText = cfg.note || '';
+    const artHtml = cfg.art || '';
+    const delayMs = cfg.delay ?? delay;
+    const nextFn = cfg.next || next;
+    setStage('MOVE');
+    screen.innerHTML=`<section class="transition tutorial-transition">
+      <div class="transition-flash"></div>
+      <div class="transition-lines"></div>
+      <div class="transition-card">
+        <div class="transition-kicker">STAGE INTRO</div>
+        <h2>${titleText}</h2>
+        <small class="transition-subtitle">${subtitleText}</small>
+        <div class="transition-visual">${artHtml}</div>
+        <div class="transition-action">${actionText}</div>
+        ${noteText ? `<div class="transition-note">${noteText}</div>` : ''}
+      </div>
+      <div class="transition-next">TAP READY...</div>
+    </section>`;
+    later(nextFn,delayMs);
   }
 
   // ---------- STAGE 1 ----------
@@ -112,7 +199,7 @@
       if(state.catch)return;
       if(seen>=8){
         state.catch={id:'none',name:'食材なし',icon:'💨',good:false,base:0};state.freshness=0;state.notes.push('8体すべて見送り');
-        toast('食材なし！');return later(()=>showTransition('第2工程','厨房へ急げ！',startStage2),1100);
+        toast('食材なし！');return later(()=>showTransition({title:'第2工程',subtitle:'ボウルに材料を集めよう',action:'クリームをボウルに集めろ！',note:'左上のお題と同じ材料を集めて分量100を目指そう',art:`<div class="transition-art-pair"><img src="assets/stage2/cream.png" alt="クリーム" class="transition-art-small"><img src="assets/stage2/bowl.png" alt="ボウル" class="transition-art-bowl"></div>`,next:startStage2,delay:1700}),1100);
       }
       phase='waiting'; current=null;
       later(()=>spawn(), r(500,1050));
@@ -127,16 +214,16 @@
       const shadowEnd=(16 + Math.random()*4).toFixed(1)+'%';
       target.style.left=startX; area.appendChild(target); phase='tease';
       const shadowDur=r(300,390)/(item.speed||1);
-      target.animate([{left:startX},{left:shadowEnd}],{duration:shadowDur,fill:'forwards',easing:'linear'});
+      trackStageAnimation(target.animate([{left:startX},{left:shadowEnd}],{duration:shadowDur,fill:'forwards',easing:'linear'}));
       later(()=>{
         if(fake && Math.random()<.68){
-          target.animate([{left:shadowEnd},{left:'-10%'}],{duration:r(220,300),fill:'forwards',easing:'ease-in'});
+          trackStageAnimation(target.animate([{left:shadowEnd},{left:'-10%'}],{duration:r(220,300),fill:'forwards',easing:'ease-in'}));
           later(()=>{target.remove();phase='waiting'; if(!cooldown)scheduleNext(); else later(scheduleNext,300);},320);
           return;
         }
         target.classList.remove('shadowy'); phase='active'; startHit=performance.now();
         const dur=(r(980,1380)/(item.speed||1));
-        const anim=target.animate([{left:shadowEnd},{left:'108%'}],{duration:dur,fill:'forwards',easing:'linear'});
+        const anim=trackStageAnimation(target.animate([{left:shadowEnd},{left:'108%'}],{duration:dur,fill:'forwards',easing:'linear'}));
         current={item,target,anim};
         anim.onfinish=()=>{ if(current?.target===target){current=null;phase='waiting';target.remove();scheduleNext();} };
       },shadowDur+30);
@@ -144,7 +231,7 @@
     function fire(ev){
       ev.preventDefault(); if(cooldown||state.catch)return;
       const rect=area.getBoundingClientRect(); const x=(ev.clientX??ev.touches?.[0]?.clientX??rect.left+rect.width/2)-rect.left;
-      const ang=(x/rect.width-.5)*42; spear.animate([{transform:`translateX(-50%) rotate(0deg)`},{transform:`translateX(-50%) rotate(${ang}deg) translateY(-24%)`},{transform:`translateX(-50%) rotate(0deg)`}],{duration:260});
+      const ang=(x/rect.width-.5)*42; trackStageAnimation(spear.animate([{transform:`translateX(-50%) rotate(0deg)`},{transform:`translateX(-50%) rotate(${ang}deg) translateY(-24%)`},{transform:`translateX(-50%) rotate(0deg)`}],{duration:260}));
       if(phase==='active' && current){
         const tr=current.target.getBoundingClientRect();
         const hitX=ev.clientX??ev.touches?.[0]?.clientX??0;
@@ -160,7 +247,7 @@
           const label=fresh>=95?'神鮮':fresh>=80?'超新鮮':fresh>=60?'新鮮':fresh>=40?'普通':'遅め';
           updateCook(`${current?.item?.name||state.catch.name}を確保！`,`獲得：${state.catch.name} / 新鮮さ ${fresh}` , state.catch.icon);
           toast(`${state.catch.name}！　${label} ${fresh}`);
-          later(()=>showTransition('第2工程','獲物を厨房へ！',startStage2),1250);
+          later(()=>showTransition({title:'第2工程',subtitle:'ボウルに材料を集めよう',action:'クリームをボウルに集めろ！',note:'左上のお題と同じ材料を集めて分量100を目指そう',art:`<div class="transition-art-pair"><img src="assets/stage2/cream.png" alt="クリーム" class="transition-art-small"><img src="assets/stage2/bowl.png" alt="ボウル" class="transition-art-bowl"></div>`,next:startStage2,delay:1700}),1250);
           return;
         }
       }
@@ -196,6 +283,15 @@
     updateCook('ボウルを構えた！',`前工程：${state.catch?.name||'なし'}`,'🥣');
     const bowl=area.querySelector('#bowl'), fill=area.querySelector('#bowlFill'), vFill=area.querySelector('#vFill'), timerEl=area.querySelector('#timer'), domEl=area.querySelector('#dominant'), vText=area.querySelector('#vText'), volumeMeter=area.querySelector('#volumeMeter');
     let bowlX=area.clientWidth/2, drops=[], active=true, time=16, last=performance.now(), spawnAcc=0;
+    // Pause this real-time mini-game when the browser/tab is hidden. A large
+    // background-frame gap must not count as a single frame or drain the clock.
+    let paused=document.hidden;
+    const onVisibility=()=>{
+      paused=document.hidden;
+      last=performance.now();
+    };
+    document.addEventListener('visibilitychange',onVisibility);
+    stage2VisibilityCleanup=()=>document.removeEventListener('visibilitychange',onVisibility);
     const mix={}; state.amount=0;
 
     function setBowl(x){bowlX=clamp(x,62,area.clientWidth-62);bowl.style.left=bowlX+'px'} setBowl(bowlX);
@@ -232,7 +328,16 @@
       volumeMeter.classList.toggle('over-goal',state.amount>106);
     }
     function loop(now){
-      if(!active)return;const dt=Math.min((now-last)/1000,.035);last=now;time-=dt;timerEl.textContent=Math.max(0,time).toFixed(1);
+      if(!active)return;
+      if(paused){last=now;raf=requestAnimationFrame(loop);return;}
+      // Use real elapsed foreground time for the timer; cap only physics steps.
+      // This prevents low-FPS devices from receiving extra game time.
+      const elapsed=Math.max(0,(now-last)/1000);
+      const dt=Math.min(elapsed,.035);
+      last=now;
+      time-=elapsed;
+      timerEl.textContent=Math.max(0,time).toFixed(1);
+      if(time<=0){active=false;finishStage2();return;}
       spawnAcc+=dt;
       // 前半・中盤のテンポはそのまま。ラスト3.5秒だけ過密になりすぎないよう少し緩和。
       const interval=time<3.5?.22:time<8?.24:.31;
@@ -262,12 +367,13 @@
       if(time<=0){active=false;finishStage2();return} raf=requestAnimationFrame(loop);
     }
     function finishStage2(){
+      if(stage2VisibilityCleanup){stage2VisibilityCleanup();stage2VisibilityCleanup=null;}
       state.liquidMix=mix;const d=currentDominant();state.liquid=d&&d.ratio>=2/3?d.l:{id:'mystery_mix',name:'謎の液体',icon:'🧪',base:35};
       state.amountScore=pctScore(state.amount,100,65);state.art+=state.liquid.id==='mystery_mix'?45:Math.round(state.amountScore*.15);
       const ratioTxt=d?Math.round(d.ratio*100):0;
       updateCook(`${state.liquid.name}になった！`,`分量 ${Math.round(state.amount)} / 完成度 ${state.amountScore}` ,state.liquid.icon);
       toast(`${state.liquid.name}（${ratioTxt}%）`);
-      later(()=>showTransition('FINAL STAGE','番組スタジオへ！',startStage3,2100),1200);
+      later(()=>showTransition({title:'第3工程',subtitle:'最後の調理を決めよう',action:'「揚げる」で止めろ！',note:'ルーレットを止めた結果でコロッケの運命が決まる',art:`<div class="transition-art-stage3"><img src="assets/dish/normal.png" alt="コロッケ" class="transition-art-dish"><div class="transition-word-badge">揚げる</div></div>`,next:startStage3,delay:1900}),1200);
     }
     refresh();raf=requestAnimationFrame(loop);
   }
@@ -314,8 +420,9 @@
     };
   }
   async function renderStage3Dish(canvas, overrides={}){
+    const session=stage3Session;
     if(!canvas || !window.KaniGameDish) return;
-    await window.KaniGameDish.render(canvas, stage3PreviewState(overrides));
+    await stage3Await(window.KaniGameDish.render(canvas, stage3PreviewState(overrides)), session);
   }
   function setStage3Caption(text, sub=''){
     const c=screen.querySelector('#stage3Caption');
@@ -325,13 +432,14 @@
     return state.catch?.img ? `<img src="${state.catch.img}" alt="${state.catch.name}">` : `<span class="stage3-emoji">${state.catch?.icon||'🦀'}</span>`;
   }
   async function hideRoulette(){
+    const session=stage3Session;
     const wrap=screen.querySelector('#rouletteWrap');
     if(!wrap || wrap.classList.contains('hidden')) return;
     wrap.classList.add('hiding');
-    await wrap.animate([
+    await stage3Await(stage3Animation(wrap,[
       {top:'16%',opacity:1,transform:'translateX(-50%) scale(1)'},
       {top:'7%',opacity:0,transform:'translateX(-50%) scale(.92)'}
-    ],{duration:300,easing:'cubic-bezier(.22,.8,.25,1)',fill:'forwards'}).finished.catch(()=>{});
+    ],{duration:300,easing:'cubic-bezier(.22,.8,.25,1)',fill:'forwards'}), session);
     wrap.classList.remove('show','locked','hiding');
     wrap.classList.add('hidden');
     wrap.style.opacity='0';
@@ -352,6 +460,8 @@
     }
     raf=requestAnimationFrame(spin);
     btn.onclick=async()=>{
+      const session=stage3Session;
+      try {
       if(!running) return;
       running=false; cancelAnimationFrame(raf);
       state.verb=verbs[i];
@@ -359,10 +469,11 @@
       word.classList.add('locked-word');
       shake(screen,'soft');
       btn.disabled=true;
-      await wait(260);
-      await hideRoulette();
-      await wait(80);
-      await resolveStage3Verb(verbs[i]);
+      await stage3Await(wait(260), session);
+      await stage3Await(hideRoulette(), session);
+      await stage3Await(wait(80), session);
+      await stage3Await(resolveStage3Verb(verbs[i]), session);
+      } catch(err) { handleStage3Error(err); }
     };
   }
 
@@ -370,69 +481,72 @@
     clearAsync(); state.stage=3; setStage('3 / 3　FINAL');
     screen.innerHTML=`<section class="final-stage stage3-cook" id="final"><div class="lights"></div><div class="audience"></div><div class="stage3-header"><h2>第3工程　クライマックス調理</h2><p>食材を鍋へ投入して、最後の運命を決めろ！</p></div><div class="stage3-scene"><div class="stage3-pot-wrap"><div class="stage3-pot-shadow"></div><div class="stage3-pot" id="pot"><div class="stage3-pot-rim"></div><div class="stage3-pot-body"></div><div class="stage3-pot-soup"></div><div class="stage3-bubble b1"></div><div class="stage3-bubble b2"></div><div class="stage3-bubble b3"></div><div class="stage3-bubble b4"></div><div class="stage3-handle left"></div><div class="stage3-handle right"></div></div></div><div class="stage3-drop ingredient" id="dropIngredient">${catchVisualHtml()}</div><div class="stage3-drop bowl" id="dropBowl"><div class="stage3-mini-bowl"><img src="assets/stage2/bowl.png" alt="ボウル"><div class="stage3-mini-fill" style="background:${state.liquid?.color||'#fff0ce'}"></div></div></div><div class="mirrorball" id="mirrorball"><div class="mirror-chain"></div><div class="mirror-core"></div><div class="mirror-glow"></div></div><div class="dj-beams" id="djBeams"></div><canvas id="stage3DishCanvas" class="stage3-dish-canvas" width="760" height="760" aria-label="完成料理プレビュー"></canvas><div class="stage3-overlay" id="stage3Overlay"></div><div class="focus-burst" id="focusBurst"><div class="focus-lines"></div><b>完成！！</b></div><div class="roulette-wrap" id="rouletteWrap"><div class="roulette-title">◯げるルーレット</div><div class="word-slot" id="word">揚げる</div><button class="stop-btn roulette-stop" id="stop">ここだ！</button></div></div><div class="stage3-caption" id="stage3Caption"><strong>素材投入！</strong><small>まずは鍋に放り込もう</small></div></section>`;
     updateCook('最終工程スタート！',`${state.catch?.name||'食材なし'} と ${state.liquid?.name||'液体なし'} を投入！`,'🍲');
-    beginStage3Flow();
+    beginStage3Flow().catch(handleStage3Error);
   }
 
   async function beginStage3Flow(){
+    const session=stage3Session;
     const final=screen.querySelector('#final');
     if(!final) return;
     const pot=final.querySelector('#pot');
     const dropIngredient=final.querySelector('#dropIngredient');
     const dropBowl=final.querySelector('#dropBowl');
-    await wait(260);
+    await stage3Await(wait(260), session);
     setStage3Caption(`${state.catch?.name||'食材'}投入！`,'上から鍋へダイブ！');
     dropIngredient.classList.add('show');
-    await dropIngredient.animate([
+    await stage3Await(stage3Animation(dropIngredient,[
       {top:'-16%',transform:'translate(-50%,-50%) rotate(-10deg) scale(.7)',opacity:0},
       {top:'47%',transform:'translate(-50%,-50%) rotate(5deg) scale(1)',opacity:1,offset:.72},
       {top:'59%',transform:'translate(-50%,-50%) rotate(8deg) scale(.96)',opacity:1,offset:.94},
       {top:'65%',transform:'translate(-50%,-50%) rotate(10deg) scale(.88)',opacity:0,offset:1}
-    ],{duration:980,easing:'ease-in'}).finished.catch(()=>{});
+    ],{duration:980,easing:'ease-in'}), session);
     dropIngredient.remove();
     shake(pot,'soft');
     pot.classList.add('boiling');
-    await wait(220);
+    await stage3Await(wait(220), session);
     setStage3Caption('ボウルごと投入！','ためらいは不要だ！');
     dropBowl.classList.add('show');
-    await dropBowl.animate([
+    await stage3Await(stage3Animation(dropBowl,[
       {top:'-18%',transform:'translate(-50%,-50%) rotate(-5deg) scale(.8)',opacity:0},
       {top:'46%',transform:'translate(-50%,-50%) rotate(3deg) scale(1)',opacity:1,offset:.7},
       {top:'59%',transform:'translate(-50%,-50%) rotate(6deg) scale(.96)',opacity:1,offset:.94},
       {top:'66%',transform:'translate(-50%,-50%) rotate(9deg) scale(.9)',opacity:0,offset:1}
-    ],{duration:1060,easing:'ease-in'}).finished.catch(()=>{});
+    ],{duration:1060,easing:'ease-in'}), session);
     dropBowl.remove();
     shake(pot,'hard');
     pot.classList.add('crazy');
-    await wait(420);
+    await stage3Await(wait(420), session);
     showRoulette(final);
   }
 
   async function flashVerbBanner(v){
+    const session=stage3Session;
     const final=screen.querySelector('#final');
     const banner=document.createElement('div');
     banner.className='event-banner verb-'+v.id;
     banner.textContent=v.label+'！';
     final.appendChild(banner);
-    await wait(760);
+    await stage3Await(wait(760), session);
     banner.remove();
   }
 
   async function launchAndLandDish(preview={}){
+    const session=stage3Session;
     const canvas=screen.querySelector('#stage3DishCanvas');
     if(!canvas) return null;
-    await renderStage3Dish(canvas, preview);
+    await stage3Await(renderStage3Dish(canvas, preview), session);
     canvas.classList.add('show');
     canvas.style.left='52%';
     canvas.style.top='72%';
     canvas.style.transform='translate(-50%,-50%) scale(.42)';
     setStage3Caption('完成品、発射！','鍋から飛び出した！');
-    const anim=canvas.animate([
+    const anim=stage3Animation(canvas,[
       {left:'52%',top:'72%',transform:'translate(-50%,-50%) scale(.42)',opacity:0},
       {left:'53%',top:'61%',transform:'translate(-50%,-50%) scale(.52)',opacity:1,offset:.18},
       {left:'54%',top:'-20%',transform:'translate(-50%,-50%) scale(.54)',opacity:1,offset:.55},
       {left:'54%',top:'47%',transform:'translate(-50%,-50%) scale(1)',opacity:1}
     ],{duration:1220,easing:'cubic-bezier(.18,.82,.23,1)'});
-    await anim.finished.catch(()=>{});
+    await stage3Await(anim, session);
     canvas.style.left='54%';
     canvas.style.top='47%';
     canvas.style.transform='translate(-50%,-50%) scale(1)';
@@ -441,18 +555,20 @@
   }
 
   async function showFocusThenResult(text='完成！！'){
+    const session=stage3Session;
     const focus=screen.querySelector('#focusBurst');
     if(focus){
       focus.querySelector('b').textContent=text;
       focus.classList.add('show');
     }
-    await wait(980);
+    await stage3Await(wait(980), session);
     if(focus) focus.classList.remove('show');
-    await wait(240);
+    await stage3Await(wait(240), session);
     finishGame();
   }
 
   async function dropAccessory(kind){
+    const session=stage3Session;
     const overlay=screen.querySelector('#stage3Overlay');
     const src=accessoryOverride(kind);
     if(!overlay || !src) return null;
@@ -467,23 +583,24 @@
     const sx=slot.flipX?-1:1;
     const rot=Number(slot.rotation||0);
     const tf=(scale,extraRot=0)=>`translate(-50%,-50%) scale(${sx*scale},${scale}) rotate(${rot+extraRot}deg)`;
-    await img.animate([
+    await stage3Await(stage3Animation(img,[
       {left:'55%',top:'-18%',transform:tf(.72,-10),opacity:0},
       {left:target.left,top:target.top,transform:tf(1,0),opacity:1}
-    ],{duration:620,easing:'cubic-bezier(.22,.8,.25,1)'}).finished.catch(()=>{});
+    ],{duration:620,easing:'cubic-bezier(.22,.8,.25,1)'}), session);
     img.style.left=target.left; img.style.top=target.top; img.style.opacity='1'; img.style.transform=tf(1,0);
     return img;
   }
 
   async function deployMirrorBall(){
+    const session=stage3Session;
     const ball=screen.querySelector('#mirrorball');
     const beams=screen.querySelector('#djBeams');
     if(!ball || !beams) return;
     ball.classList.add('show');
-    await ball.animate([
+    await stage3Await(stage3Animation(ball,[
       {top:'-24%',opacity:0,transform:'translateX(-50%) scale(.7)'},
       {top:'14%',opacity:1,transform:'translateX(-50%) scale(1)'}
-    ],{duration:760,easing:'cubic-bezier(.22,.8,.25,1)',fill:'forwards'}).finished.catch(()=>{});
+    ],{duration:760,easing:'cubic-bezier(.22,.8,.25,1)',fill:'forwards'}), session);
     ball.classList.add('active');
     beams.classList.add('active');
     const final=screen.querySelector('#final');
@@ -590,7 +707,7 @@
           state.special='dj';
           panel.remove();
           final.classList.remove('dj-qte-active');
-          renderStage3Dish(canvas,{verb:state.verb,special:'dj',finishScore:state.finishScore,finishLabel:state.finishLabel});
+          renderStage3Dish(canvas,{verb:state.verb,special:'dj',finishScore:state.finishScore,finishLabel:state.finishLabel}).catch(handleStage3Error);
           return resolve({taps,ratio});
         }
         raf=requestAnimationFrame(loop);
@@ -600,69 +717,70 @@
   }
 
   async function resolveStage3Verb(v){
+    const session=stage3Session;
     const final=screen.querySelector('#final');
     const canvas=screen.querySelector('#stage3DishCanvas');
     const wrap=screen.querySelector('#rouletteWrap');
     wrap.classList.add('locked');
-    await flashVerbBanner(v);
+    await stage3Await(flashVerbBanner(v), session);
     if(v.id==='fry' || v.id==='burn'){
-      await runTrackSkill(v);
-      await wait(180);
-      await launchAndLandDish({verb:state.verb,finishScore:state.finishScore,finishLabel:state.finishLabel,special:null});
-      await showFocusThenResult(v.id==='burn'?'こんがり完成！！':'完成！！');
+      await stage3Await(runTrackSkill(v), session);
+      await stage3Await(wait(180), session);
+      await stage3Await(launchAndLandDish({verb:state.verb,finishScore:state.finishScore,finishLabel:state.finishLabel,special:null}), session);
+      await stage3Await(showFocusThenResult(v.id==='burn'?'こんがり完成！！':'完成！！'), session);
       return;
     }
     if(v.id==='escape'){
       state.finishScore=0; state.finishLabel='逃走'; state.art+=120; state.special='escaped';
-      await launchAndLandDish({verb:{id:'fry',label:'揚げる'},finishScore:72,finishLabel:'揚がった',special:null});
+      await stage3Await(launchAndLandDish({verb:{id:'fry',label:'揚げる'},finishScore:72,finishLabel:'揚がった',special:null}), session);
       setStage3Caption('あれ…？','集中線が出ない……');
-      await wait(300);
+      await stage3Await(wait(300), session);
       setStage3Caption('足が生えた！','料理が逃げ出す！');
-      await renderStage3Dish(canvas,{verb:state.verb,finishScore:state.finishScore,finishLabel:state.finishLabel,special:'escaped'});
-      await wait(120);
-      await canvas.animate([
+      await stage3Await(renderStage3Dish(canvas,{verb:state.verb,finishScore:state.finishScore,finishLabel:state.finishLabel,special:'escaped'}), session);
+      await stage3Await(wait(120), session);
+      await stage3Await(stage3Animation(canvas,[
         {left:'54%',top:'47%',transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1},
         {left:'-14%',top:'37%',transform:'translate(-50%,-50%) scale(.95) rotate(-5deg)',opacity:1}
-      ],{duration:980,easing:'linear'}).finished.catch(()=>{});
+      ],{duration:980,easing:'linear'}), session);
       canvas.style.left='-14%'; canvas.style.top='37%'; canvas.style.transform='translate(-50%,-50%) scale(.95) rotate(-5deg)'; canvas.style.opacity='1';
       const cap1=screen.querySelector('#stage3Caption'); if(cap1) cap1.style.opacity='0';
-      await wait(620);
+      await stage3Await(wait(620), session);
       finishGame();
       return;
     }
     if(v.id==='throw'){
-      await launchAndLandDish({verb:{id:'fry',label:'揚げる'},finishScore:70,finishLabel:'揚がった',special:null});
+      await stage3Await(launchAndLandDish({verb:{id:'fry',label:'揚げる'},finishScore:70,finishLabel:'揚がった',special:null}), session);
       setStage3Caption('まだ終わらない！','ここから投擲だ！');
-      await wait(250);
-      await runTrackSkill(v);
+      await stage3Await(wait(250), session);
+      await stage3Await(runTrackSkill(v), session);
       setStage3Caption('それっ！','もう一度上へ飛んでいく！');
-      await canvas.animate([
+      await stage3Await(stage3Animation(canvas,[
         {left:'54%',top:'47%',transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1},
         {left:'66%',top:'29%',transform:'translate(-50%,-50%) scale(.95) rotate(-10deg)',opacity:1,offset:.25},
         {left:'78%',top:'-22%',transform:'translate(-50%,-50%) scale(.7) rotate(-26deg)',opacity:0}
-      ],{duration:720,easing:'cubic-bezier(.22,.8,.25,1)'}).finished.catch(()=>{});
+      ],{duration:720,easing:'cubic-bezier(.22,.8,.25,1)'}), session);
       canvas.style.left='78%'; canvas.style.top='-22%'; canvas.style.transform='translate(-50%,-50%) scale(.7) rotate(-26deg)'; canvas.style.opacity='0';
       const cap2=screen.querySelector('#stage3Caption'); if(cap2) cap2.style.opacity='0';
-      await wait(620);
+      await stage3Await(wait(620), session);
       finishGame();
       return;
     }
     if(v.id==='age'){
-      await launchAndLandDish({verb:{id:'fry',label:'揚げる'},finishScore:80,finishLabel:'揚がった',special:null});
+      await stage3Await(launchAndLandDish({verb:{id:'fry',label:'揚げる'},finishScore:80,finishLabel:'揚がった',special:null}), session);
       setStage3Caption('まだ完成ではない…！','何かが降ってくる！');
-      await wait(220);
-      const g=await dropAccessory('glasses');
-      await wait(120);
-      const h=await dropAccessory('headphones');
-      await wait(120);
-      await deployMirrorBall();
-      await wait(160);
+      await stage3Await(wait(220), session);
+      const g=await stage3Await(dropAccessory('glasses'), session);
+      await stage3Await(wait(120), session);
+      const h=await stage3Await(dropAccessory('headphones'), session);
+      await stage3Await(wait(120), session);
+      await stage3Await(deployMirrorBall(), session);
+      await stage3Await(wait(160), session);
       state.special='dj';
       if(g) g.remove(); if(h) h.remove();
-      await renderStage3Dish(canvas,{verb:state.verb,special:'dj',finishScore:82,finishLabel:'フロア準備OK'});
-      await runDJSkill(canvas);
+      await stage3Await(renderStage3Dish(canvas,{verb:state.verb,special:'dj',finishScore:82,finishLabel:'フロア準備OK'}), session);
+      await stage3Await(runDJSkill(canvas), session);
       clearDJMode();
-      await showFocusThenResult('アがった！！');
+      await stage3Await(showFocusThenResult('アがった！！'), session);
     }
   }
 
@@ -778,7 +896,7 @@
     };
     if(idx<0){
       book.unshift(snapshot);
-      localStorage.setItem(storageKey,JSON.stringify(book));
+      writeStorage(storageKey,book);
       return {isNew:true,isRecord:true,entry:snapshot};
     }
     const entry=book[idx];
@@ -789,7 +907,7 @@
       const firstDate=entry.firstDate||now, count=entry.cookCount;
       Object.assign(entry,snapshot,{firstDate,cookCount:count,lastDate:now});
     }
-    localStorage.setItem(storageKey,JSON.stringify(book));
+    writeStorage(storageKey,book);
     return {isNew:false,isRecord,entry};
   }
 
@@ -839,17 +957,61 @@
 
   function renderBookDishCards(){
     if(!window.KaniGameDish) return;
-    screen.querySelectorAll('[data-book-canvas]').forEach(canvas=>{
-      const key=canvas.dataset.bookCanvas;
-      const entry=book.find(x=>x.recipeKey===key);
-      if(!entry) return;
-      const gs=gameStateFromBookEntry(entry);
-      window.KaniGameDish.render(canvas,gs).catch(err=>{
-        console.warn('図鑑料理Canvasの描画に失敗しました',err);
-        const wrap=canvas.closest('.book-thumb');
-        if(wrap) wrap.innerHTML=`<div class="book-fallback">${entry.icon||'🍽️'}</div>`;
-      });
-    });
+    const canvases=[...screen.querySelectorAll('[data-book-canvas]')];
+    const byKey=new Map(book.map(entry=>[entry.recipeKey,entry]));
+    const queue=[];
+    const queued=new Set();
+    let cancelled=false, busy=false;
+    const buffer=document.createElement('canvas');
+    buffer.width=760; buffer.height=760;
+    let observer=null;
+    const enqueue=canvas=>{
+      if(cancelled || !canvas.isConnected || queued.has(canvas)) return;
+      queued.add(canvas);
+      queue.push(canvas);
+      processQueue();
+    };
+    async function processQueue(){
+      if(busy || cancelled)return;
+      busy=true;
+      try{
+        while(queue.length && !cancelled){
+          const canvas=queue.shift();
+          if(!canvas.isConnected)continue;
+          const entry=byKey.get(canvas.dataset.bookCanvas);
+          if(!entry)continue;
+          try{
+            await window.KaniGameDish.render(buffer,gameStateFromBookEntry(entry));
+            if(cancelled || !canvas.isConnected)break;
+            const ctx=canvas.getContext('2d');
+            if(ctx){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(buffer,0,0,canvas.width,canvas.height);}
+          }catch(err){
+            if(cancelled)break;
+            console.warn('図鑑料理Canvasの描画に失敗しました',err);
+            const wrap=canvas.closest('.book-thumb');
+            if(wrap)wrap.textContent=entry.icon||'🍽️';
+          }
+          // Yield so taps and navigation can be handled between thumbnails.
+          await new Promise(resolve=>setTimeout(resolve,0));
+        }
+      } finally {busy=false;}
+    }
+    if('IntersectionObserver' in window){
+      observer=new IntersectionObserver(entries=>{
+        for(const entry of entries){
+          if(entry.isIntersecting){observer.unobserve(entry.target);enqueue(entry.target);}
+        }
+      },{rootMargin:'280px 0px'});
+      canvases.forEach(canvas=>observer.observe(canvas));
+    }else{
+      canvases.forEach(enqueue);
+    }
+    bookRenderCleanup=()=>{
+      cancelled=true;
+      observer?.disconnect();
+      queue.length=0;
+      // Do not clear the shared buffer while a render is still in flight.
+    };
   }
 
   function showBook(){
@@ -857,7 +1019,7 @@
     const sortedBook=[...book];
     if(bookSort==='number') sortedBook.sort((a,b)=>(RECIPE_NUMBER.get(a.recipeKey)||9999)-(RECIPE_NUMBER.get(b.recipeKey)||9999));
     // book is unshifted on discovery, so the array is newest-first.
-    const items=sortedBook.map(x=>`<button class="book-item" data-recipe-key="${escapeHtml(x.recipeKey)}"><div class="book-thumb"><canvas data-book-canvas="${escapeHtml(x.recipeKey)}" width="760" height="760" aria-label="${escapeHtml(recipeComments[x.recipeKey]?.name||x.name)}"></canvas></div><small class="book-number">No.${String(RECIPE_NUMBER.get(x.recipeKey)||0).padStart(3,'0')}</small><b>${escapeHtml(recipeComments[x.recipeKey]?.name||x.name)}</b><small>最高 ${Number(x.bestScore||0).toLocaleString()} pt</small></button>`).join('');
+    const items=sortedBook.map(x=>`<button class="book-item" data-recipe-key="${escapeHtml(x.recipeKey)}"><div class="book-thumb"><canvas data-book-canvas="${escapeHtml(x.recipeKey)}" width="160" height="160" aria-label="${escapeHtml(recipeComments[x.recipeKey]?.name||x.name)}"></canvas></div><small class="book-number">No.${String(RECIPE_NUMBER.get(x.recipeKey)||0).padStart(3,'0')}</small><b>${escapeHtml(recipeComments[x.recipeKey]?.name||x.name)}</b><small>最高 ${Number(x.bestScore||0).toLocaleString()} pt</small></button>`).join('');
     screen.innerHTML=`<section class="book-screen"><div class="book-card"><button class="book-top-back" type="button">← メニューへ戻る</button><div class="book-head"><div><h2>レシピ図鑑</h2><p>発見した料理だけがここに残る。</p></div><div class="book-progress"><b>${book.length}</b><span>/ ${TOTAL_RECIPES}</span><small>発見</small></div></div><div class="book-tools"><label for="bookSort">並び順</label><select id="bookSort"><option value="discovery" ${bookSort==='discovery'?'selected':''}>発見順（新しい順）</option><option value="number" ${bookSort==='number'?'selected':''}>図鑑番号順</option></select></div>${items?`<div class="book-grid">${items}</div>`:'<div class="empty-note">まだ一皿も登録されていません。まずは何か作ってみよう。</div>'}</div></section>`;
     screen.querySelector('.book-top-back').onclick=showMenu;
     screen.querySelector('#bookSort').onchange=e=>{bookSort=e.target.value;showBook();};
@@ -876,7 +1038,7 @@
   }
   function showSettings(){
     clearAsync();setStage('設定');screen.innerHTML=`<section class="settings-screen"><div class="settings-card"><h2>設定</h2><label>効果音（プロトタイプでは未接続）</label><input id="sfx" type="range" min="0" max="100" value="${settings.sfx}"><label><input id="rm" type="checkbox" ${settings.reducedMotion?'checked':''}> 演出を控えめにする</label><button class="back-btn">保存して戻る</button></div></section>`;
-    screen.querySelector('.back-btn').onclick=()=>{settings.sfx=+screen.querySelector('#sfx').value;settings.reducedMotion=screen.querySelector('#rm').checked;localStorage.setItem(settingsKey,JSON.stringify(settings));showMenu()};
+    screen.querySelector('.back-btn').onclick=()=>{settings.sfx=+screen.querySelector('#sfx').value;settings.reducedMotion=screen.querySelector('#rm').checked;writeStorage(settingsKey,settings);showMenu()};
   }
   function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 
